@@ -1,0 +1,16 @@
+{
+  "name": "revisionary",
+  "description": "Git-powered file storage",
+  "keywords": [
+    "git",
+    "files",
+    "storage",
+    "versions"
+  ],
+  "author": {
+    "name": "Casey Grun"
+  },
+  "version": "0.0.1",
+  "license": "MIT",
+  "main": "."
+}

@@ -1,0 +1,334 @@
+if not QUnit? then QUnit = require('qunit-cli')
+q = QUnit
+
+mkdirp = require('mkdirp')
+rimraf = require('rimraf')
+async = require('async')
+child_process = require('child_process')
+pth = require('path')
+
+
+q.module('utils');
+utils = require('../utils');
+
+q.test('sanitizeShellString',->
+	q.equal(utils.sanitizeShellString("rm -rf"),"'rm -rf'")
+	q.equal(utils.sanitizeShellString(" what's up "),"' what\\'s up '")
+	q.equal(utils.sanitizeShellString("hello\\world"),"'hello\\\\world'")
+)
+q.test('sanitizePath',->
+	q.equal(utils.sanitizePath("/../"),"/", ".. and // removed sequentially")
+	q.equal(utils.sanitizePath("wh!@#$%^&*()+<>,?:;[]{}\'\"\\t"),'wht', "non-word characters removed")
+	q.equal(utils.sanitizePath('../wh!t'),'/wht', ".. and non-word characters removed")
+	q.equal(utils.sanitizePath('./a/valid/path.txt'),'./a/valid/path.txt', "valid path is passed unchanged")
+)
+
+
+git = false
+gs = require('../git')
+store = require('../store')
+q.module('git',{
+	'setup': -> 
+		rimraf.sync('test_repo')
+		mkdirp.sync('test_repo')
+		git = new gs.GitStore('test_repo')
+		q.stop()
+		git.initialize(null,(err) ->
+			q.start()
+		)
+	'teardown': ->
+});
+
+q.test('init',->
+	q.expect(1)
+
+	q.stop()
+	child_process.exec('git status',{cwd: 'test_repo'},(err,stdout,stderr) ->
+		q.equal("""# On branch master
+				#
+				# Initial commit
+				#
+				nothing to commit (create/copy files and use "git add" to track)
+
+				""",stdout)
+		q.start()
+	)
+
+	true
+)
+
+q.test('parseLog',->
+	hash = "8048d56e64d4325166b0f3bd756db155b0155cb6"
+	name = "Name"
+	email = "Email@email.com"
+	time = "1375222059"
+	msg = "Test create commit"
+	path = "/test/hello.txt"
+
+	testString = "#{hash}\x00#{name}\x00#{email}\x00#{time}\x00#{msg}"
+	
+	parsedLog = git.parseLog(path,testString)
+	
+	q.ok(parsedLog?,'A log string is parsed')
+	q.equal(parsedLog.path, path, 'Path is correct')
+	q.equal(parsedLog.id, hash, 'Hash is correct')
+	q.equal(parsedLog.time, time, 'Time is correct')
+	q.equal(parsedLog.message, msg, 'Message is correct')
+
+	q.equal(parsedLog.author.name, name, 'Author name is correct')
+	q.equal(parsedLog.author.email, email, 'Author email is correct')
+)
+
+q.test('create',->
+	q.expect(5)
+
+	createPath1 = 'createTest.txt'
+	createPath2 = 'space test.txt'
+	createPath3 = 'folder/test.txt'
+
+
+	createText = 'hello world'
+	createAuthor = new store.Author('Name','Email@email.com')
+	createMessage = 'Test create commit'
+	q.stop()
+
+	async.series [
+
+		# createPath1
+		(callback) ->
+			git.create(createPath1, createText, createAuthor, createMessage, (err,returnedResource) ->
+				q.ok(not err?, 'No error on creating file 1')
+				if err? then console.log(err)
+						
+				async.parallel([
+					(cb) ->
+						git.read(createPath1, null, (err, retrievedResourceText) ->
+							q.equal(retrievedResourceText,createText, 'Created file has proper contents')
+							if err? then console.log(err)
+							cb(err)
+						)
+					,
+					(cb) ->
+						git.latest(createPath1, (err, returnedRevision) ->
+							q.ok(returnedRevision, 'A revision is returned')
+							cb(null)
+						)
+				],(err) -> callback())
+			)
+
+		# createPath2
+		(callback) -> 
+			git.create(createPath2, createText, createAuthor, createMessage, (err,returnedResource) ->
+				q.ok(not err?, 'No error on creating file 2')
+				if err? then console.log(err);
+
+				callback()
+			)
+
+		# createPath3
+		(callback) -> 
+			git.create(createPath3, createText, createAuthor, createMessage, (err,returnedResource) ->
+				q.ok(not err?, 'No error on creating file 3')
+				if err? then console.log(err);
+
+				callback()
+			)
+	],(err) -> q.start()
+
+)
+
+
+q.test('save', ->
+	q.expect(9)
+
+	createPath = savePath = 'saveTest.txt'
+	createText = 'hello world'
+	createAuthor = new store.Author('Name','Email@example.com')
+	createMessage = 'Test create commit'
+
+	saveText = 'hello new world'
+	saveAuthor = new store.Author('Name2','Email2@example.com')
+	saveMessage = 'Test save commit'
+
+	q.stop()
+
+	git.create(createPath, createText, createAuthor, createMessage, (err,returnedResource) ->
+		q.ok(not err?, 'No error on creating file')
+		if err? then return console.log(err)
+		
+		git.save savePath,saveText,saveAuthor,saveMessage, (err,returnedResource) ->
+			async.parallel([
+				(cb) ->
+					git.read(savePath, null, (err, retrievedResourceText) ->
+						q.equal(retrievedResourceText,saveText, 'Created file has proper contents')
+						if err? then console.log(err)
+						cb(err)
+					)
+				,
+				(cb) ->
+					git.latest(savePath, (err, returnedRevision) ->
+						q.ok(not err?, 'No error on retrieving revision')
+						q.ok(returnedRevision?, 'A revision is returned')
+						q.equal(returnedRevision.author.name, saveAuthor.name, 'Author name is correct')
+						q.equal(returnedRevision.author.email, saveAuthor.email, 'Author email is correct')
+						q.ok(returnedRevision.id?, 'Revision is assigned an ID')
+						q.ok(returnedRevision.time?, 'Revision is assigned a date')
+						q.equal(returnedRevision.message,saveMessage)
+
+						cb(null)
+					)
+			],(err) -> q.start())
+	)
+)
+
+q.test('log', ->
+	q.expect(13)
+
+	createPath = savePath = 'testLogDir/saveTest.txt'
+	createText = 'hello world'
+	createAuthor = new store.Author('Name','Email@example.com')
+	createMessage = 'Test create commit'
+
+	saveText = 'hello new world'
+	saveAuthor = new store.Author('Name2','Email2@example.com')
+	saveMessage = 'Test save commit'
+
+	q.stop()
+
+	git.create(createPath, createText, createAuthor, createMessage, (err,returnedResource) ->
+		q.ok(not err?, 'No error on creating file')
+		if err? then return console.log(err)
+		
+		git.save savePath,saveText,saveAuthor,saveMessage, (err,returnedResource) ->
+			q.ok(not err?, 'No error on saving file')
+
+			git.log savePath, (err, results) ->
+				q.ok(not err?, 'No error on log')
+
+				console.log results
+
+				q.ok(results.length == 2, 'Two revisions are returned')
+
+				q.ok(results[0]?.id && results[1]?.id, 'Revisions have IDs')
+				q.ok(results[0]?.id != results[1]?.id, 'Revisions have distinct IDs')
+
+				q.ok(results[0]?.time && results[1]?.time, 'Revisions have distinct times')
+				q.ok(parseInt(results[0]?.time) != parseInt(results[1]?.time), 'First revision follows second revision')
+
+				q.equal(results[1].message, createMessage, 'Create message is correct')
+				q.equal(results[0].message, saveMessage, 'Save message is correct')
+
+				q.deepEqual(results[1].author, createAuthor, 'Create author is correct')
+				q.deepEqual(results[0].author, saveAuthor, 'Save author is correct')
+
+				q.ok(results[0]?.path == results[1]?.path == createPath, 'Path is correct')
+
+				q.start()
+	)
+)
+q.test('list', ->
+	q.expect(5)
+
+	dirPath = 'testDir'
+
+	testFile1 = pth.join(dirPath,'test1.txt')
+	testFile2 = pth.join(dirPath,'test2.txt')
+	testFile3 = pth.join(dirPath,'test3.txt')
+
+	innerDir = pth.join(dirPath,'innerDir')
+	testFile4 = pth.join(innerDir,'test4.txt')
+
+	createText = 'hello world'
+	createAuthor = new store.Author('Name','Email@example.com')
+	createMessage = 'Test create commit'
+
+	q.stop()
+
+	async.series [
+		(cb) -> git.create(testFile1, createText, createAuthor, createMessage, cb),
+		(cb) -> git.create(testFile2, createText, createAuthor, createMessage, cb),
+		(cb) -> git.create(testFile3, createText, createAuthor, createMessage, cb)
+		(cb) -> git.create(testFile4, createText, createAuthor, createMessage, cb)
+
+	], (err, results) -> 
+		q.ok(not err?, 'No error on creating test files')
+		git.list(dirPath, (err, resources) ->
+			resources.sort( (a,b) -> a.path > b.path )
+
+			q.equal(resources[1]?.path, testFile1, 'Test file 1 is present')
+			q.equal(resources[2]?.path, testFile2, 'Test file 2 is present')
+			q.equal(resources[3]?.path, testFile3, 'Test file 3 is present')
+			q.equal(resources[0]?.path, innerDir+'/',  'Inner directory is present')
+
+			q.start()
+		)
+)
+
+
+q.test('type',->
+	q.expect(4)
+
+	dirPath = 'testTypeDir'
+
+	testFile = pth.join(dirPath,'test1.txt')
+
+	createText = 'hello world'
+	createAuthor = new store.Author('Name','Email@example.com')
+	createMessage = 'Test create commit'
+
+	q.stop()
+
+	git.create(testFile, createText, createAuthor, createMessage, (err, returnedResource) ->
+		q.ok(not err?, 'No error on creating test files')
+
+		async.series [
+			(cb) -> git.type(testFile, null, (err, type) -> 
+				q.equal(type, 'file', 'Type of file is properly detected'); 
+				cb(err)),
+			(cb) -> git.type(dirPath, null, (err, type) -> 
+				q.equal(type, 'folder', 'Type of folder is properly detected'); 
+				cb(err)), 
+		], (err, results) ->
+			q.ok(not err?, 'No error in checking types of files and folder')
+			if err then console.log(err)
+			q.start()
+	)
+)
+
+
+q.test('search', ->
+	q.expect(6)
+
+	dirPath = 'testDir'
+
+	testFile1 = pth.join(dirPath,'test1.txt')
+	testFile2 = pth.join(dirPath,'test2.txt')
+	testFile3 = pth.join(dirPath,'test3.txt')
+
+	createText1 = 'hello world'
+	createText2 = 'hello mother'
+	createText3 = 'hello father'
+
+	createAuthor = new store.Author('Name','Email@example.com')
+	createMessage = 'Test create commit'
+
+	q.stop()
+
+	async.series [
+		(cb) -> git.create(testFile1, createText1, createAuthor, createMessage, cb),
+		(cb) -> git.create(testFile2, createText2, createAuthor, createMessage, cb),
+		(cb) -> git.create(testFile3, createText3, createAuthor, createMessage, cb)
+	], (err, results) -> 
+		q.ok(not err?, 'No error on creating test files')
+		git.search('mother',{},(err, matches) ->
+			q.ok(not err?, 'No error on searching for "mother"')
+			q.ok(matches.length==1, 'One match')
+			q.equal(matches[0][0]?.path,testFile2, 'Match has correct path')
+			q.equal(matches[0][1],1, 'Match has correct line number')
+			q.equal(matches[0][2],createText2, 'Match has correct text')
+			q.start()
+		)
+)
+
+
+
