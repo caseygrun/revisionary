@@ -66,23 +66,79 @@
     return true;
   });
 
-  q.test('parseLog', function() {
-    var email, hash, msg, name, parsedLog, path, testString, time;
+  q.test('parseCommit', function() {
+    var date, email, hash, msg, name, parsedCommit, path, testString, time;
     hash = "8048d56e64d4325166b0f3bd756db155b0155cb6";
     name = "Name";
     email = "Email@email.com";
     time = "1375222059";
     msg = "Test create commit";
     path = "/test/hello.txt";
+    date = new Date(parseInt(time) * 1000);
     testString = "" + hash + "\x00" + name + "\x00" + email + "\x00" + time + "\x00" + msg;
-    parsedLog = git.parseLog(path, testString);
+    parsedCommit = git.parseCommit(testString);
+    return q.deepEqual([hash, name, email, date, msg], parsedCommit, 'Parsed commit has correct fields');
+  });
+
+  q.test('commitRevision', function() {
+    var date, email, hash, msg, name, parsedCommit, parsedLog, path, testString, time;
+    hash = "8048d56e64d4325166b0f3bd756db155b0155cb6";
+    name = "Name";
+    email = "Email@email.com";
+    time = "1375222059";
+    msg = "Test create commit";
+    path = "/test/hello.txt";
+    date = new Date(parseInt(time) * 1000);
+    testString = "" + hash + "\x00" + name + "\x00" + email + "\x00" + time + "\x00" + msg;
+    parsedCommit = git.parseCommit(testString);
+    parsedLog = git.commitRevision(path, parsedCommit);
     q.ok(parsedLog != null, 'A log string is parsed');
     q.equal(parsedLog.path, path, 'Path is correct');
     q.equal(parsedLog.id, hash, 'Hash is correct');
-    q.equal(parsedLog.time, time, 'Time is correct');
+    q.equal(parsedLog.time.toString(), date.toString(), 'Time is correct');
     q.equal(parsedLog.message, msg, 'Message is correct');
     q.equal(parsedLog.author.name, name, 'Author name is correct');
     return q.equal(parsedLog.author.email, email, 'Author email is correct');
+  });
+
+  q.test('parseLogLines', function() {
+    var expected, expectedRevs, i, logText, rev, revs, _i, _len, _results;
+    logText = "6b211e61fb9192cdbb68fb9e3162152861217691\x00Name2\x00Email2@example.com\x001383023629\x00Test save commit\n\ntestLogDir/saveTest.txt\n\n0da471f7226f1db0b2fc6307c7f1ec7b4f9c108c\x00Name\x00Email@example.com\x001383023628\x00Test create commit\n\ntestLogDir/saveTest.txt";
+    expectedRevs = [
+      {
+        path: 'testLogDir/saveTest.txt',
+        id: '6b211e61fb9192cdbb68fb9e3162152861217691',
+        author: {
+          name: 'Name2',
+          email: 'Email2@example.com'
+        },
+        message: 'Test save commit',
+        changes: []
+      }, {
+        path: 'testLogDir/saveTest.txt',
+        id: '0da471f7226f1db0b2fc6307c7f1ec7b4f9c108c',
+        author: {
+          name: 'Name',
+          email: 'Email@example.com'
+        },
+        message: 'Test create commit',
+        changes: []
+      }
+    ];
+    revs = git.parseLogLines(logText);
+    q.ok(revs, 'Lines are returned');
+    _results = [];
+    for (i = _i = 0, _len = revs.length; _i < _len; i = ++_i) {
+      rev = revs[i];
+      expected = expectedRevs[i];
+      q.equal(rev.path, expected.path, "Path " + i + " is correct");
+      q.equal(rev.author.name, expected.author.name, "Author name " + i + " is correct");
+      q.equal(rev.author.email, expected.author.email, "Author email " + i + " is correct");
+      q.equal(rev.message, expected.message, "Message " + i + " is correct");
+      q.ok(rev.id, "ID " + i + " exists");
+      _results.push(q.ok(rev.time, "Time " + i + " exists"));
+    }
+    return _results;
   });
 
   q.test('create', function() {
@@ -209,7 +265,6 @@
         return git.log(savePath, function(err, results) {
           var _ref, _ref1, _ref10, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
           q.ok(err == null, 'No error on log');
-          console.log(results);
           q.ok(results.length === 2, 'Two revisions are returned');
           q.ok(((_ref = results[0]) != null ? _ref.id : void 0) && ((_ref1 = results[1]) != null ? _ref1.id : void 0), 'Revisions have IDs');
           q.ok(((_ref2 = results[0]) != null ? _ref2.id : void 0) !== ((_ref3 = results[1]) != null ? _ref3.id : void 0), 'Revisions have distinct IDs');

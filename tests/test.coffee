@@ -57,27 +57,84 @@ q.test('init',->
 	true
 )
 
-q.test('parseLog',->
+q.test('parseCommit',->
 	hash = "8048d56e64d4325166b0f3bd756db155b0155cb6"
 	name = "Name"
 	email = "Email@email.com"
 	time = "1375222059"
 	msg = "Test create commit"
 	path = "/test/hello.txt"
+	date = new Date(parseInt(time)*1000)
 
 	testString = "#{hash}\x00#{name}\x00#{email}\x00#{time}\x00#{msg}"
 	
-	parsedLog = git.parseLog(path,testString)
-	
+	parsedCommit = git.parseCommit(testString)
+
+	q.deepEqual [hash, name, email, date, msg], parsedCommit, 'Parsed commit has correct fields'
+)
+
+q.test('commitRevision',->
+	hash = "8048d56e64d4325166b0f3bd756db155b0155cb6"
+	name = "Name"
+	email = "Email@email.com"
+	time = "1375222059"
+	msg = "Test create commit"
+	path = "/test/hello.txt"
+	date = new Date(parseInt(time)*1000)
+
+	testString = "#{hash}\x00#{name}\x00#{email}\x00#{time}\x00#{msg}"
+	parsedCommit = git.parseCommit(testString) # [hash, name, email, date, msg]
+	parsedLog = git.commitRevision(path,parsedCommit)
+
 	q.ok(parsedLog?,'A log string is parsed')
 	q.equal(parsedLog.path, path, 'Path is correct')
 	q.equal(parsedLog.id, hash, 'Hash is correct')
-	q.equal(parsedLog.time, time, 'Time is correct')
+	q.equal(parsedLog.time.toString(), date.toString(), 'Time is correct')
 	q.equal(parsedLog.message, msg, 'Message is correct')
 
 	q.equal(parsedLog.author.name, name, 'Author name is correct')
 	q.equal(parsedLog.author.email, email, 'Author email is correct')
 )
+
+q.test 'parseLogLines',->
+	logText = """
+	6b211e61fb9192cdbb68fb9e3162152861217691\x00Name2\x00Email2@example.com\x001383023629\x00Test save commit
+
+	testLogDir/saveTest.txt
+
+	0da471f7226f1db0b2fc6307c7f1ec7b4f9c108c\x00Name\x00Email@example.com\x001383023628\x00Test create commit
+
+	testLogDir/saveTest.txt
+	"""
+	expectedRevs = [{ 
+		path: 'testLogDir/saveTest.txt',
+		id: '6b211e61fb9192cdbb68fb9e3162152861217691',
+		author: { name: 'Name2', email: 'Email2@example.com' },
+		message: 'Test save commit',
+		changes: [] 
+	},
+	{
+		path: 'testLogDir/saveTest.txt',
+		id: '0da471f7226f1db0b2fc6307c7f1ec7b4f9c108c',
+		author: { name: 'Name', email: 'Email@example.com' },
+		message: 'Test create commit',
+		changes: [] }
+	]
+
+	revs = git.parseLogLines(logText);
+
+	q.ok(revs,'Lines are returned')
+	for rev, i in revs
+		expected = expectedRevs[i];
+		q.equal rev.path, expected.path, "Path #{i} is correct"
+		# console.log rev.author
+		# console.log expected.author
+		q.equal rev.author.name, expected.author.name, "Author name #{i} is correct"
+		q.equal rev.author.email, expected.author.email, "Author email #{i} is correct"
+
+		q.equal rev.message, expected.message, "Message #{i} is correct"
+		q.ok rev.id, "ID #{i} exists"
+		q.ok rev.time, "Time #{i} exists"
 
 q.test('create',->
 	q.expect(5)
@@ -204,8 +261,6 @@ q.test('log', ->
 
 			git.log savePath, (err, results) ->
 				q.ok(not err?, 'No error on log')
-
-				console.log results
 
 				q.ok(results.length == 2, 'Two revisions are returned')
 

@@ -269,7 +269,7 @@
         if (err != null) {
           return callback(err);
         }
-        return callback(null, _this.parseLog(path, stdout));
+        return callback(null, _this.commitRevision(path, _this.parseCommit(stdout)));
       });
     };
 
@@ -387,28 +387,60 @@
       if (options.limit) {
         args.push("-n " + utils.sanitizeShellString(options.until));
       }
-      return this.cmd("git log --pretty='format:" + this.logFormat + "' -- " + path, function(err, stdout, stderr) {
-        var line, revs;
+      return this.cmd("git whatchanged --name-only --pretty='format:" + this.logFormat + "' -- " + path, function(err, stdout, stderr) {
+        var revs;
         if (err != null) {
           return callback(err);
         }
-        revs = (function() {
-          var _i, _len, _ref, _results;
-          _ref = stdout.split('\n');
-          _results = [];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            line = _ref[_i];
-            if (line) {
-              _results.push(this.parseLog(path, line));
-            }
-          }
-          return _results;
-        }).call(_this);
+        revs = _this.parseLogLines(stdout);
         return callback(null, revs);
       });
     };
 
     /**
+    	 * @private
+    	 * @param  {String} text Input lines from `git whatchanged`
+    	 * @return {store.Revision[]} Generated revisions
+    */
+
+
+    GitStore.prototype.parseLogLines = function(text) {
+      var commit, line, revs, s;
+      revs = [];
+      commit = null;
+      revs = (function() {
+        var _i, _len, _ref, _results;
+        _ref = text.split('\n');
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          line = _ref[_i];
+          if (line) {
+            if (this.commitPattern.test(line)) {
+              commit = this.parseCommit(line);
+              _results.push(null);
+            } else {
+              _results.push(this.commitRevision(line, commit));
+            }
+          }
+        }
+        return _results;
+      }).call(this);
+      revs = (function() {
+        var _i, _len, _results;
+        _results = [];
+        for (_i = 0, _len = revs.length; _i < _len; _i++) {
+          s = revs[_i];
+          if (s) {
+            _results.push(s);
+          }
+        }
+        return _results;
+      })();
+      return revs;
+    };
+
+    /**
+    	 * Format git should use to output commit messages
     	 * @private
     	 * @type {String}
     */
@@ -417,20 +449,46 @@
     GitStore.prototype.logFormat = '%H%x00%an%x00%ae%x00%ct%x00%B';
 
     /**
+    	 * Regular expression to parse commit messages
+    	 * @private
+    	 * @type {RegExp}
+    */
+
+
+    GitStore.prototype.commitPattern = /(\w+)\0([\w\s]+)\0([\w\s\.@]+)\0(\d+)\0(.*)/;
+
+    /**
+    	 * Parses a commit message encoded using the #logFormat
     	 * @private
     	 * @param  {String} line A line of output from a git-log like function with format {@link #logFormat}
     */
 
 
-    GitStore.prototype.parseLog = function(path, line) {
-      var authorEmail, authorName, full, id, match, message, time;
-      match = line.match(/(\w+)\0([\w\s]+)\0([\w\s\.@]+)\0(\d+)\0(.*)/);
+    GitStore.prototype.parseCommit = function(line) {
+      var match;
+      match = line.match(this.commitPattern);
       if (match) {
-        full = match[0], id = match[1], authorName = match[2], authorEmail = match[3], time = match[4], message = match[5];
-        time = new Date(parseInt(time) * 1000);
-        return new store.Revision(path, id, time, new store.Author(authorName, authorEmail), message, []);
+        match[4] = new Date(parseInt(match[4]) * 1000);
+        return match.slice(1);
       } else {
         return null;
+      }
+    };
+
+    /**
+    	 * Generates a revision from a path and a {@link #parseCommit parsed commit statement}
+    	 * @private
+    	 * @param  {String} path Path to the relevant resource
+    	 * @param  {Array} commit Parsed commit string (see #parseCommit)
+    	 * @return {store.Revision} Revision
+    */
+
+
+    GitStore.prototype.commitRevision = function(path, commit) {
+      var authorEmail, authorName, id, message, time;
+      if (commit) {
+        id = commit[0], authorName = commit[1], authorEmail = commit[2], time = commit[3], message = commit[4];
+        return new store.Revision(path, id, time, new store.Author(authorName, authorEmail), message, []);
       }
     };
 

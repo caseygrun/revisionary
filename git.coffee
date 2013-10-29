@@ -183,7 +183,7 @@ class GitStore extends store.Store
 		path = utils.sanitizePath(path)
 		this.cmd("git log --pretty='format:#{@logFormat}' --max-count=1 HEAD -- #{path}",(err,stdout,stderr) => 
 			if err? then return callback(err)
-			callback(null,@parseLog(path,stdout));
+			callback(null,@commitRevision(path,@parseCommit(stdout)));
 		);
 
 	remove: (path, callback) -> 
@@ -261,16 +261,39 @@ class GitStore extends store.Store
 
 
 		# %x01 %H %x00 %ct %x00 %an %x00 %ae %x00 %B %n %x00
-		this.cmd("git log --pretty='format:#{@logFormat}' -- #{path}",(err,stdout,stderr) =>
+		this.cmd("git whatchanged --name-only --pretty='format:#{@logFormat}' -- #{path}",(err,stdout,stderr) =>
 			if err? then return callback(err)
-
-			revs = (this.parseLog(path,line) for line in stdout.split('\n') when line)			
+			revs = @parseLogLines(stdout)
 			callback(null,revs)
 		)
 
+	###*
+	 * @private
+	 * @param  {String} text Input lines from `git whatchanged`
+	 * @return {store.Revision[]} Generated revisions
+	###
+	parseLogLines: (text) ->
+		revs = []
+		commit = null
 
+		# generate list of revisions from lines of input
+		revs = for line in text.split('\n') when line
+
+			# some lines will specify beginnings of new commits
+			if @commitPattern.test(line) 
+				commit = @parseCommit(line)
+				null
+
+			# others will specify particular files being revised 
+			else
+				@commitRevision line, commit
+
+		# filter lines which produced no revision
+		revs = (s for s in revs when s)
+		revs
 
 	###*
+	 * Format git should use to output commit messages
 	 * @private
 	 * @type {String}
 	###
@@ -278,29 +301,42 @@ class GitStore extends store.Store
 	logFormat: '%H%x00%an%x00%ae%x00%ct%x00%B',
 
 	###*
+	 * Regular expression to parse commit messages
+	 * @private
+	 * @type {RegExp}
+	###
+	commitPattern: ///
+		(\w+)\0			# Commit hash
+		([\w\s]+)\0		# Author name
+		([\w\s\.@]+)\0	# Author email
+		(\d+)\0			# Commit timestamp
+		(.*)			# Commit message
+		///
+
+	###*
+	 * Parses a commit message encoded using the #logFormat
 	 * @private
 	 * @param  {String} line A line of output from a git-log like function with format {@link #logFormat}
 	###
-	parseLog: (path, line) ->
-		match = line.match(
-			///
-			(\w+)\0			# Commit hash
-			([\w\s]+)\0		# Author name
-			([\w\s\.@]+)\0	# Author email
-			(\d+)\0			# Commit timestamp
-			(.*)			# Commit message
-			///
-		)
-
-		# console.log(match)
-		# console.log(line)
-
-		if match 
-			[full, id, authorName, authorEmail, time, message] = match
-			time = new Date(parseInt(time)*1000)
-			new store.Revision(path, id, time, new store.Author(authorName,authorEmail), message, [])
+	parseCommit: (line) ->
+		match = line.match(@commitPattern)
+		if match
+			match[4] = new Date(parseInt(match[4])*1000)
+			match.slice(1)
 		else 
 			null
+
+	###*
+	 * Generates a revision from a path and a {@link #parseCommit parsed commit statement}
+	 * @private
+	 * @param  {String} path Path to the relevant resource
+	 * @param  {Array} commit Parsed commit string (see #parseCommit)
+	 * @return {store.Revision} Revision
+	###
+	commitRevision: (path, commit) ->
+		if commit 
+			[id, authorName, authorEmail, time, message] = commit
+			new store.Revision(path, id, time, new store.Author(authorName,authorEmail), message, [])
 
 module.exports = {
 	GitStore: GitStore
