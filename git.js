@@ -387,7 +387,7 @@
       if (options.limit) {
         args.push("-n " + utils.sanitizeShellString(options.until));
       }
-      return this.cmd("git whatchanged --name-only --pretty='format:" + this.logFormat + "' -- " + path, function(err, stdout, stderr) {
+      return this.cmd("git whatchanged --name-only " + (args.join(' ')) + " --pretty='format:" + this.logFormat + "' -- " + path, function(err, stdout, stderr) {
         var revs;
         if (err != null) {
           return callback(err);

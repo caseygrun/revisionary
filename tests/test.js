@@ -245,8 +245,7 @@
   });
 
   q.test('log', function() {
-    var createAuthor, createMessage, createPath, createText, saveAuthor, saveMessage, savePath, saveText;
-    q.expect(13);
+    var createAuthor, createDate, createMessage, createPath, createText, saveAuthor, saveMessage, savePath, saveText;
     createPath = savePath = 'testLogDir/saveTest.txt';
     createText = 'hello world';
     createAuthor = new store.Author('Name', 'Email@example.com');
@@ -254,30 +253,73 @@
     saveText = 'hello new world';
     saveAuthor = new store.Author('Name2', 'Email2@example.com');
     saveMessage = 'Test save commit';
+    createDate = false;
     q.stop();
     return git.create(createPath, createText, createAuthor, createMessage, function(err, returnedResource) {
+      var doSave;
       q.ok(err == null, 'No error on creating file');
       if (err != null) {
         return console.log(err);
       }
-      return git.save(savePath, saveText, saveAuthor, saveMessage, function(err, returnedResource) {
-        q.ok(err == null, 'No error on saving file');
-        return git.log(savePath, function(err, results) {
-          var _ref, _ref1, _ref10, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
-          q.ok(err == null, 'No error on log');
-          q.ok(results.length === 2, 'Two revisions are returned');
-          q.ok(((_ref = results[0]) != null ? _ref.id : void 0) && ((_ref1 = results[1]) != null ? _ref1.id : void 0), 'Revisions have IDs');
-          q.ok(((_ref2 = results[0]) != null ? _ref2.id : void 0) !== ((_ref3 = results[1]) != null ? _ref3.id : void 0), 'Revisions have distinct IDs');
-          q.ok(((_ref4 = results[0]) != null ? _ref4.time : void 0) && ((_ref5 = results[1]) != null ? _ref5.time : void 0), 'Revisions have distinct times');
-          q.ok(parseInt((_ref6 = results[0]) != null ? _ref6.time : void 0) !== parseInt((_ref7 = results[1]) != null ? _ref7.time : void 0), 'First revision follows second revision');
-          q.equal(results[1].message, createMessage, 'Create message is correct');
-          q.equal(results[0].message, saveMessage, 'Save message is correct');
-          q.deepEqual(results[1].author, createAuthor, 'Create author is correct');
-          q.deepEqual(results[0].author, saveAuthor, 'Save author is correct');
-          q.ok((((_ref9 = results[0]) != null ? _ref9.path : void 0) === (_ref8 = (_ref10 = results[1]) != null ? _ref10.path : void 0) && _ref8 === createPath), 'Path is correct');
-          return q.start();
+      createDate = new Date();
+      createDate.setSeconds(createDate.getSeconds() + 1);
+      doSave = function() {
+        return git.save(savePath, saveText, saveAuthor, saveMessage, function(err, returnedResource) {
+          q.ok(err == null, 'No error on saving file');
+          return async.series([
+            function(cb) {
+              return git.log(savePath, function(err, results) {
+                var _ref, _ref1, _ref10, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
+                q.ok(err == null, 'No error on log');
+                if (err) {
+                  cb(err);
+                }
+                q.ok(results.length === 2, 'Two revisions are returned');
+                q.ok(((_ref = results[0]) != null ? _ref.id : void 0) && ((_ref1 = results[1]) != null ? _ref1.id : void 0), 'Revisions have IDs');
+                q.ok(((_ref2 = results[0]) != null ? _ref2.id : void 0) !== ((_ref3 = results[1]) != null ? _ref3.id : void 0), 'Revisions have distinct IDs');
+                q.ok(((_ref4 = results[0]) != null ? _ref4.time : void 0) && ((_ref5 = results[1]) != null ? _ref5.time : void 0), 'Revisions have distinct times');
+                q.ok(((_ref6 = results[0]) != null ? _ref6.time : void 0) > ((_ref7 = results[1]) != null ? _ref7.time : void 0), 'First revision follows second revision');
+                q.equal(results[1].message, createMessage, 'Create message is correct');
+                q.equal(results[0].message, saveMessage, 'Save message is correct');
+                q.deepEqual(results[1].author, createAuthor, 'Create author is correct');
+                q.deepEqual(results[0].author, saveAuthor, 'Save author is correct');
+                q.ok((((_ref9 = results[0]) != null ? _ref9.path : void 0) === (_ref8 = (_ref10 = results[1]) != null ? _ref10.path : void 0) && _ref8 === createPath), 'Path is correct');
+                return cb(null);
+              });
+            }, function(cb) {
+              return git.log(savePath, {
+                since: createDate.toString()
+              }, function(err, results) {
+                q.ok(err == null, 'Since: No error on log');
+                if (err != null) {
+                  cb(err);
+                }
+                q.ok(results.length === 1, 'Since: One revision is returned');
+                q.equal(results[0].message, saveMessage, 'Since: Save message is correct');
+                return cb(null);
+              });
+            }, function(cb) {
+              return git.log(savePath, {
+                until: createDate.toString()
+              }, function(err, results) {
+                q.ok(err == null, 'Until: No error on log');
+                if (err != null) {
+                  cb(err);
+                }
+                q.ok(results.length === 1, 'Until: One revision is returned');
+                q.equal(results[0].message, createMessage, 'Until: Create message is correct');
+                return cb(null);
+              });
+            }
+          ], function(err) {
+            if (err) {
+              console.log(err);
+            }
+            return q.start();
+          });
         });
-      });
+      };
+      return setTimeout(doSave, 2000);
     });
   });
 

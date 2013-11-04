@@ -96,7 +96,7 @@ q.test('commitRevision',->
 	q.equal(parsedLog.author.email, email, 'Author email is correct')
 )
 
-q.test 'parseLogLines',->
+q.test('parseLogLines',->
 	logText = """
 	6b211e61fb9192cdbb68fb9e3162152861217691\x00Name2\x00Email2@example.com\x001383023629\x00Test save commit
 
@@ -135,6 +135,7 @@ q.test 'parseLogLines',->
 		q.equal rev.message, expected.message, "Message #{i} is correct"
 		q.ok rev.id, "ID #{i} exists"
 		q.ok rev.time, "Time #{i} exists"
+)
 
 q.test('create',->
 	q.expect(5)
@@ -239,7 +240,7 @@ q.test('save', ->
 )
 
 q.test('log', ->
-	q.expect(13)
+	# q.expect(13)
 
 	createPath = savePath = 'testLogDir/saveTest.txt'
 	createText = 'hello world'
@@ -250,35 +251,73 @@ q.test('log', ->
 	saveAuthor = new store.Author('Name2','Email2@example.com')
 	saveMessage = 'Test save commit'
 
+	createDate = false
+
 	q.stop()
 
 	git.create(createPath, createText, createAuthor, createMessage, (err,returnedResource) ->
 		q.ok(not err?, 'No error on creating file')
 		if err? then return console.log(err)
 		
-		git.save savePath,saveText,saveAuthor,saveMessage, (err,returnedResource) ->
-			q.ok(not err?, 'No error on saving file')
+		# make date 1 second in future to separate creation and save events
+		createDate = new Date()
+		createDate.setSeconds(createDate.getSeconds() + 1)
 
-			git.log savePath, (err, results) ->
-				q.ok(not err?, 'No error on log')
+		# create function to be executed in 2 seconds
+		doSave = () ->
+			git.save savePath,saveText,saveAuthor,saveMessage, (err,returnedResource) ->
+				q.ok(not err?, 'No error on saving file')
 
-				q.ok(results.length == 2, 'Two revisions are returned')
+				async.series [
+					(cb) -> 
+						git.log savePath, (err, results) ->
+							q.ok(not err?, 'No error on log')
+							if err then cb(err)
 
-				q.ok(results[0]?.id && results[1]?.id, 'Revisions have IDs')
-				q.ok(results[0]?.id != results[1]?.id, 'Revisions have distinct IDs')
+							q.ok(results.length == 2, 'Two revisions are returned')
 
-				q.ok(results[0]?.time && results[1]?.time, 'Revisions have distinct times')
-				q.ok(parseInt(results[0]?.time) != parseInt(results[1]?.time), 'First revision follows second revision')
+							q.ok(results[0]?.id && results[1]?.id, 'Revisions have IDs')
+							q.ok(results[0]?.id != results[1]?.id, 'Revisions have distinct IDs')
 
-				q.equal(results[1].message, createMessage, 'Create message is correct')
-				q.equal(results[0].message, saveMessage, 'Save message is correct')
+							q.ok(results[0]?.time && results[1]?.time, 'Revisions have distinct times')
+							q.ok(results[0]?.time > results[1]?.time, 'Latest revision comes first')
 
-				q.deepEqual(results[1].author, createAuthor, 'Create author is correct')
-				q.deepEqual(results[0].author, saveAuthor, 'Save author is correct')
+							q.equal(results[1].message, createMessage, 'Create message is correct')
+							q.equal(results[0].message, saveMessage, 'Save message is correct')
 
-				q.ok(results[0]?.path == results[1]?.path == createPath, 'Path is correct')
+							q.deepEqual(results[1].author, createAuthor, 'Create author is correct')
+							q.deepEqual(results[0].author, saveAuthor, 'Save author is correct')
 
-				q.start()
+							q.ok(results[0]?.path == results[1]?.path == createPath, 'Path is correct')
+
+							cb(null)	
+					(cb) ->
+						# test `since`
+						git.log savePath, { since: createDate.toString() }, (err, results) ->
+							q.ok(not err?, 'Since: No error on log')
+							if err? then cb(err)
+
+							q.ok(results.length == 1, 'Since: One revision is returned')
+							q.equal(results[0].message, saveMessage, 'Since: Save message is correct')
+
+							cb(null)
+
+					(cb) ->
+						# test `until`
+						git.log savePath, { until: createDate.toString() }, (err, results) ->
+							q.ok(not err?, 'Until: No error on log')
+							if err? then cb(err)
+
+							q.ok(results.length == 1, 'Until: One revision is returned')
+							q.equal(results[0].message, createMessage, 'Until: Create message is correct')
+
+							cb(null)
+
+				], (err) -> 
+					if err then console.log err
+					q.start()
+		
+		setTimeout(doSave, 2000)
 	)
 )
 q.test('list', ->

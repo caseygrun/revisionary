@@ -261,7 +261,7 @@ class GitStore extends store.Store
 
 
 		# %x01 %H %x00 %ct %x00 %an %x00 %ae %x00 %B %n %x00
-		this.cmd("git whatchanged --name-only --pretty='format:#{@logFormat}' -- #{path}",(err,stdout,stderr) =>
+		this.cmd("git whatchanged --name-only #{args.join(' ')} --pretty='format:#{@logFormat}' -- #{path}",(err,stdout,stderr) =>
 			if err? then return callback(err)
 			revs = @parseLogLines(stdout)
 			callback(null,revs)
