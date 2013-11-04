@@ -1,9 +1,7 @@
 child_process = require('child_process')
 
 function cmd(command, options, callback) {
-	// console.log(command)
-	// console.log(options)
-	console.log(command,options)
+	// console.log(command,options)
 	return child_process.exec(command,options,callback)
 }
 
