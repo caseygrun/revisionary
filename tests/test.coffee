@@ -325,12 +325,12 @@ q.test('list', ->
 
 	dirPath = 'listDir'
 
-	testFile1 = pth.join(dirPath,'test1.txt')
-	testFile2 = pth.join(dirPath,'test2.txt')
-	testFile3 = pth.join(dirPath,'test3.txt')
+	testFile1 = pth.join(dirPath,'test 1.txt')
+	testFile2 = pth.join(dirPath,'test 2.txt')
+	testFile3 = pth.join(dirPath,'test 3.txt')
 
 	innerDir = pth.join(dirPath,'innerDir')
-	testFile4 = pth.join(innerDir,'test4.txt')
+	testFile4 = pth.join(innerDir,'test 4.txt')
 
 	createText = 'hello world'
 	createAuthor = new store.Author('Name','Email@example.com')
@@ -363,12 +363,12 @@ q.test('all', ->
 
 	dirPath = 'allDir'
 
-	testFile1 = pth.join(dirPath,'test1.txt')
-	testFile2 = pth.join(dirPath,'test2.txt')
-	testFile3 = pth.join(dirPath,'test3.txt')
+	testFile1 = pth.join(dirPath,'test 1.txt')
+	testFile2 = pth.join(dirPath,'test 2.txt')
+	testFile3 = pth.join(dirPath,'test 3.txt')
 
 	innerDir = pth.join(dirPath,'innerDir')
-	testFile4 = pth.join(innerDir,'test4.txt')
+	testFile4 = pth.join(innerDir,'test 4.txt')
 
 	createText = 'hello world'
 	createAuthor = new store.Author('Name','Email@example.com')
@@ -433,9 +433,9 @@ q.test('search', ->
 
 	dirPath = 'testDir'
 
-	testFile1 = pth.join(dirPath,'test1.txt')
-	testFile2 = pth.join(dirPath,'test2.txt')
-	testFile3 = pth.join(dirPath,'test3.txt')
+	testFile1 = pth.join(dirPath,'test 1.txt')
+	testFile2 = pth.join(dirPath,'test 2.txt')
+	testFile3 = pth.join(dirPath,'@test 3.txt')
 
 	createText1 = 'hello world'
 	createText2 = 'hello mother'

@@ -186,10 +186,23 @@ class GitStore extends store.Store
 			callback(null,@commitRevision(path,@parseCommit(stdout)));
 		);
 
+	###*
+	 * Removes a given object
+	 * @param  {String} path Path to the resource
+	 * @param  {Function} callback Callback to be executed upon completion
+	###
 	remove: (path, callback) -> 
 		path = utils.sanitizePath(path);
 		this.cmd("git rm #{path}", callback)
 
+	###*
+	 * Moves an objets from one location to another
+	 * @param  {Strin} fromPath Path to the Resource
+	 * @param  {String} toPath Path to the new location of the Resource
+	 * @param  {store.Author} author Author of the commit
+	 * @param  {String} message Commit message
+	 * @param  {Function} callback Callback to be executed upon completion
+	###
 	move: (fromPath, toPath, author, message, callback) -> 
 		fromPath = utils.sanitizePath(fromPath);
 		toPath = utils.sanitizePath(toPath);
@@ -206,7 +219,7 @@ class GitStore extends store.Store
 			if err? then return callback(err)
 
 			callback(null,for line in stdout.split('\x00') when line
-				[mode,type,id,path] = line.match(/\d{6} (blob|tree) (\w{40})\t([@\w\.\/ ]+)/) 
+				[mode,type,id,path] = line.match(/\d{6} (blob|tree) (\w{40})\t([@\w\.\/\\ ]+)/) 
 				if type == 'tree' then path += '/' 
 				new store.Resource(pth.join(directory,path))
 			)
@@ -220,7 +233,7 @@ class GitStore extends store.Store
 			if err? then return callback(err)
 
 			callback(null,for line in stdout.split('\x00') when line
-				[mode,type,id,path] = line.match(/\d{6} (blob|tree) (\w{40})\t([@\w\. ]+)/) 
+				[mode,type,id,path] = line.match(/\d{6} (blob|tree) (\w{40})\t([@\w\.\/\\ ]+)/) 
 				if type == 'tree' then path += '/' 
 				new store.Resource(pth.join(directory,path))
 			)
@@ -240,9 +253,9 @@ class GitStore extends store.Store
 			callback(err, (for line in stdout.split('\n') when line
 				[all,path,line,match] = line.match(
 					///
-					([\w\.\/\\]+):	# filename
-					(\d+):			# line 
-					(.+)			# match
+					([@\w\.\/\\\x20]+):	# filename
+					(\d+):			    # line 
+					(.+)			    # match
 					///) 
 				[new store.Resource(path),line,match]
 			))

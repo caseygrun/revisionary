@@ -327,11 +327,11 @@
     var createAuthor, createMessage, createText, dirPath, innerDir, testFile1, testFile2, testFile3, testFile4;
     q.expect(5);
     dirPath = 'listDir';
-    testFile1 = pth.join(dirPath, 'test1.txt');
-    testFile2 = pth.join(dirPath, 'test2.txt');
-    testFile3 = pth.join(dirPath, 'test3.txt');
+    testFile1 = pth.join(dirPath, 'test 1.txt');
+    testFile2 = pth.join(dirPath, 'test 2.txt');
+    testFile3 = pth.join(dirPath, 'test 3.txt');
     innerDir = pth.join(dirPath, 'innerDir');
-    testFile4 = pth.join(innerDir, 'test4.txt');
+    testFile4 = pth.join(innerDir, 'test 4.txt');
     createText = 'hello world';
     createAuthor = new store.Author('Name', 'Email@example.com');
     createMessage = 'Test create commit';
@@ -366,11 +366,11 @@
     var createAuthor, createMessage, createText, dirPath, innerDir, testFile1, testFile2, testFile3, testFile4;
     q.expect(5);
     dirPath = 'allDir';
-    testFile1 = pth.join(dirPath, 'test1.txt');
-    testFile2 = pth.join(dirPath, 'test2.txt');
-    testFile3 = pth.join(dirPath, 'test3.txt');
+    testFile1 = pth.join(dirPath, 'test 1.txt');
+    testFile2 = pth.join(dirPath, 'test 2.txt');
+    testFile3 = pth.join(dirPath, 'test 3.txt');
     innerDir = pth.join(dirPath, 'innerDir');
-    testFile4 = pth.join(innerDir, 'test4.txt');
+    testFile4 = pth.join(innerDir, 'test 4.txt');
     createText = 'hello world';
     createAuthor = new store.Author('Name', 'Email@example.com');
     createMessage = 'Test create commit';
@@ -392,7 +392,6 @@
         resources.sort(function(a, b) {
           return a.path > b.path;
         });
-        console.log(resources);
         q.equal((_ref = resources[1]) != null ? _ref.path : void 0, testFile1, 'Test file 1 is present');
         q.equal((_ref1 = resources[2]) != null ? _ref1.path : void 0, testFile2, 'Test file 2 is present');
         q.equal((_ref2 = resources[3]) != null ? _ref2.path : void 0, testFile3, 'Test file 3 is present');
@@ -439,9 +438,9 @@
     var createAuthor, createMessage, createText1, createText2, createText3, dirPath, testFile1, testFile2, testFile3;
     q.expect(6);
     dirPath = 'testDir';
-    testFile1 = pth.join(dirPath, 'test1.txt');
-    testFile2 = pth.join(dirPath, 'test2.txt');
-    testFile3 = pth.join(dirPath, 'test3.txt');
+    testFile1 = pth.join(dirPath, 'test 1.txt');
+    testFile2 = pth.join(dirPath, 'test 2.txt');
+    testFile3 = pth.join(dirPath, '@test 3.txt');
     createText1 = 'hello world';
     createText2 = 'hello mother';
     createText3 = 'hello father';

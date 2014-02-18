@@ -273,10 +273,27 @@
       });
     };
 
+    /**
+    	 * Removes a given object
+    	 * @param  {String} path Path to the resource
+    	 * @param  {Function} callback Callback to be executed upon completion
+    */
+
+
     GitStore.prototype.remove = function(path, callback) {
       path = utils.sanitizePath(path);
       return this.cmd("git rm " + path, callback);
     };
+
+    /**
+    	 * Moves an objets from one location to another
+    	 * @param  {Strin} fromPath Path to the Resource
+    	 * @param  {String} toPath Path to the new location of the Resource
+    	 * @param  {store.Author} author Author of the commit
+    	 * @param  {String} message Commit message
+    	 * @param  {Function} callback Callback to be executed upon completion
+    */
+
 
     GitStore.prototype.move = function(fromPath, toPath, author, message, callback) {
       var authorString;
@@ -305,7 +322,7 @@
             if (!(line)) {
               continue;
             }
-            _ref1 = line.match(/\d{6} (blob|tree) (\w{40})\t([@\w\.\/ ]+)/), mode = _ref1[0], type = _ref1[1], id = _ref1[2], path = _ref1[3];
+            _ref1 = line.match(/\d{6} (blob|tree) (\w{40})\t([@\w\.\/\\ ]+)/), mode = _ref1[0], type = _ref1[1], id = _ref1[2], path = _ref1[3];
             if (type === 'tree') {
               path += '/';
             }
@@ -333,7 +350,7 @@
             if (!(line)) {
               continue;
             }
-            _ref1 = line.match(/\d{6} (blob|tree) (\w{40})\t([@\w\. ]+)/), mode = _ref1[0], type = _ref1[1], id = _ref1[2], path = _ref1[3];
+            _ref1 = line.match(/\d{6} (blob|tree) (\w{40})\t([@\w\.\/\\ ]+)/), mode = _ref1[0], type = _ref1[1], id = _ref1[2], path = _ref1[3];
             if (type === 'tree') {
               path += '/';
             }
@@ -371,7 +388,7 @@
             if (!(line)) {
               continue;
             }
-            _ref1 = line.match(/([\w\.\\/\\]+):(\d+):(.+)/), all = _ref1[0], path = _ref1[1], line = _ref1[2], match = _ref1[3];
+            _ref1 = line.match(/([@\w\.\\/\\\x20]+):(\d+):(.+)/), all = _ref1[0], path = _ref1[1], line = _ref1[2], match = _ref1[3];
             _results.push([new store.Resource(path), line, match]);
           }
           return _results;
