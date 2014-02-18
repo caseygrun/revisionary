@@ -323,7 +323,7 @@ q.test('log', ->
 q.test('list', ->
 	q.expect(5)
 
-	dirPath = 'testDir'
+	dirPath = 'listDir'
 
 	testFile1 = pth.join(dirPath,'test1.txt')
 	testFile2 = pth.join(dirPath,'test2.txt')
@@ -353,6 +353,44 @@ q.test('list', ->
 			q.equal(resources[2]?.path, testFile2, 'Test file 2 is present')
 			q.equal(resources[3]?.path, testFile3, 'Test file 3 is present')
 			q.equal(resources[0]?.path, innerDir+'/',  'Inner directory is present')
+
+			q.start()
+		)
+)
+
+q.test('all', ->
+	q.expect(5)
+
+	dirPath = 'allDir'
+
+	testFile1 = pth.join(dirPath,'test1.txt')
+	testFile2 = pth.join(dirPath,'test2.txt')
+	testFile3 = pth.join(dirPath,'test3.txt')
+
+	innerDir = pth.join(dirPath,'innerDir')
+	testFile4 = pth.join(innerDir,'test4.txt')
+
+	createText = 'hello world'
+	createAuthor = new store.Author('Name','Email@example.com')
+	createMessage = 'Test create commit'
+
+	q.stop()
+
+	async.series [
+		(cb) -> git.create(testFile1, createText, createAuthor, createMessage, cb),
+		(cb) -> git.create(testFile2, createText, createAuthor, createMessage, cb),
+		(cb) -> git.create(testFile3, createText, createAuthor, createMessage, cb)
+		(cb) -> git.create(testFile4, createText, createAuthor, createMessage, cb)
+
+	], (err, results) -> 
+		q.ok(not err?, 'No error on creating test files')
+		git.all(dirPath, (err, resources) ->
+			resources.sort( (a,b) -> a.path > b.path )
+
+			q.equal(resources[1]?.path, testFile1, 'Test file 1 is present')
+			q.equal(resources[2]?.path, testFile2, 'Test file 2 is present')
+			q.equal(resources[3]?.path, testFile3, 'Test file 3 is present')
+			q.equal(resources[0]?.path, testFile4, 'Inner directory file is present')
 
 			q.start()
 		)

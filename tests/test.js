@@ -278,7 +278,7 @@
                 q.ok(((_ref = results[0]) != null ? _ref.id : void 0) && ((_ref1 = results[1]) != null ? _ref1.id : void 0), 'Revisions have IDs');
                 q.ok(((_ref2 = results[0]) != null ? _ref2.id : void 0) !== ((_ref3 = results[1]) != null ? _ref3.id : void 0), 'Revisions have distinct IDs');
                 q.ok(((_ref4 = results[0]) != null ? _ref4.time : void 0) && ((_ref5 = results[1]) != null ? _ref5.time : void 0), 'Revisions have distinct times');
-                q.ok(((_ref6 = results[0]) != null ? _ref6.time : void 0) > ((_ref7 = results[1]) != null ? _ref7.time : void 0), 'First revision follows second revision');
+                q.ok(((_ref6 = results[0]) != null ? _ref6.time : void 0) > ((_ref7 = results[1]) != null ? _ref7.time : void 0), 'Latest revision comes first');
                 q.equal(results[1].message, createMessage, 'Create message is correct');
                 q.equal(results[0].message, saveMessage, 'Save message is correct');
                 q.deepEqual(results[1].author, createAuthor, 'Create author is correct');
@@ -326,7 +326,7 @@
   q.test('list', function() {
     var createAuthor, createMessage, createText, dirPath, innerDir, testFile1, testFile2, testFile3, testFile4;
     q.expect(5);
-    dirPath = 'testDir';
+    dirPath = 'listDir';
     testFile1 = pth.join(dirPath, 'test1.txt');
     testFile2 = pth.join(dirPath, 'test2.txt');
     testFile3 = pth.join(dirPath, 'test3.txt');
@@ -357,6 +357,46 @@
         q.equal((_ref1 = resources[2]) != null ? _ref1.path : void 0, testFile2, 'Test file 2 is present');
         q.equal((_ref2 = resources[3]) != null ? _ref2.path : void 0, testFile3, 'Test file 3 is present');
         q.equal((_ref3 = resources[0]) != null ? _ref3.path : void 0, innerDir + '/', 'Inner directory is present');
+        return q.start();
+      });
+    });
+  });
+
+  q.test('all', function() {
+    var createAuthor, createMessage, createText, dirPath, innerDir, testFile1, testFile2, testFile3, testFile4;
+    q.expect(5);
+    dirPath = 'allDir';
+    testFile1 = pth.join(dirPath, 'test1.txt');
+    testFile2 = pth.join(dirPath, 'test2.txt');
+    testFile3 = pth.join(dirPath, 'test3.txt');
+    innerDir = pth.join(dirPath, 'innerDir');
+    testFile4 = pth.join(innerDir, 'test4.txt');
+    createText = 'hello world';
+    createAuthor = new store.Author('Name', 'Email@example.com');
+    createMessage = 'Test create commit';
+    q.stop();
+    return async.series([
+      function(cb) {
+        return git.create(testFile1, createText, createAuthor, createMessage, cb);
+      }, function(cb) {
+        return git.create(testFile2, createText, createAuthor, createMessage, cb);
+      }, function(cb) {
+        return git.create(testFile3, createText, createAuthor, createMessage, cb);
+      }, function(cb) {
+        return git.create(testFile4, createText, createAuthor, createMessage, cb);
+      }
+    ], function(err, results) {
+      q.ok(err == null, 'No error on creating test files');
+      return git.all(dirPath, function(err, resources) {
+        var _ref, _ref1, _ref2, _ref3;
+        resources.sort(function(a, b) {
+          return a.path > b.path;
+        });
+        console.log(resources);
+        q.equal((_ref = resources[1]) != null ? _ref.path : void 0, testFile1, 'Test file 1 is present');
+        q.equal((_ref1 = resources[2]) != null ? _ref1.path : void 0, testFile2, 'Test file 2 is present');
+        q.equal((_ref2 = resources[3]) != null ? _ref2.path : void 0, testFile3, 'Test file 3 is present');
+        q.equal((_ref3 = resources[0]) != null ? _ref3.path : void 0, testFile4, 'Inner directory file is present');
         return q.start();
       });
     });

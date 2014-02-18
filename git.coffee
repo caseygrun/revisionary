@@ -198,6 +198,20 @@ class GitStore extends store.Store
 		this.cmd("git mv #{fromPath} #{toPath} && git commit --author=#{authorString} -m #{message}",
 			(err,stdout,stderr) -> callback(err));
 
+	all: (directory, callback) ->
+		objectName = if directory isnt '/' then utils.sanitizeShellString("HEAD:"+utils.sanitizePath(directory)) else '"HEAD"'
+		this.cmd("git ls-tree --full-tree -z -r #{objectName}", (err, stdout, stderr) ->
+			# -> <mode> SP <type> SP <object> TAB <file>
+
+			if err? then return callback(err)
+
+			callback(null,for line in stdout.split('\x00') when line
+				[mode,type,id,path] = line.match(/\d{6} (blob|tree) (\w{40})\t([@\w\.\/ ]+)/) 
+				if type == 'tree' then path += '/' 
+				new store.Resource(pth.join(directory,path))
+			)
+		)
+
 	list: (directory,callback) -> 
 		objectName = if directory isnt '/' then utils.sanitizeShellString("HEAD:"+utils.sanitizePath(directory)) else '"HEAD"'
 		this.cmd("git ls-tree -z #{objectName}", (err, stdout, stderr) ->

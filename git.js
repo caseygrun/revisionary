@@ -288,6 +288,34 @@
       });
     };
 
+    GitStore.prototype.all = function(directory, callback) {
+      var objectName;
+      objectName = directory !== '/' ? utils.sanitizeShellString("HEAD:" + utils.sanitizePath(directory)) : '"HEAD"';
+      return this.cmd("git ls-tree --full-tree -z -r " + objectName, function(err, stdout, stderr) {
+        var id, line, mode, path, type;
+        if (err != null) {
+          return callback(err);
+        }
+        return callback(null, (function() {
+          var _i, _len, _ref, _ref1, _results;
+          _ref = stdout.split('\x00');
+          _results = [];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            line = _ref[_i];
+            if (!(line)) {
+              continue;
+            }
+            _ref1 = line.match(/\d{6} (blob|tree) (\w{40})\t([@\w\.\/ ]+)/), mode = _ref1[0], type = _ref1[1], id = _ref1[2], path = _ref1[3];
+            if (type === 'tree') {
+              path += '/';
+            }
+            _results.push(new store.Resource(pth.join(directory, path)));
+          }
+          return _results;
+        })());
+      });
+    };
+
     GitStore.prototype.list = function(directory, callback) {
       var objectName;
       objectName = directory !== '/' ? utils.sanitizeShellString("HEAD:" + utils.sanitizePath(directory)) : '"HEAD"';
