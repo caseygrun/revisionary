@@ -306,7 +306,8 @@
     };
 
     GitStore.prototype.all = function(directory, callback) {
-      var objectName;
+      var objectName,
+        _this = this;
       objectName = directory !== '/' ? utils.sanitizeShellString("HEAD:" + utils.sanitizePath(directory)) : '"HEAD"';
       return this.cmd("git ls-tree --full-tree -z -r " + objectName, function(err, stdout, stderr) {
         var id, line, mode, path, type;
@@ -322,19 +323,20 @@
             if (!(line)) {
               continue;
             }
-            _ref1 = line.match(/\d{6} (blob|tree) (\w{40})\t([@\w\.\/\\ ]+)/), mode = _ref1[0], type = _ref1[1], id = _ref1[2], path = _ref1[3];
+            _ref1 = line.match(this.listPattern), mode = _ref1[0], type = _ref1[1], id = _ref1[2], path = _ref1[3];
             if (type === 'tree') {
               path += '/';
             }
             _results.push(new store.Resource(pth.join(directory, path)));
           }
           return _results;
-        })());
+        }).call(_this));
       });
     };
 
     GitStore.prototype.list = function(directory, callback) {
-      var objectName;
+      var objectName,
+        _this = this;
       objectName = directory !== '/' ? utils.sanitizeShellString("HEAD:" + utils.sanitizePath(directory)) : '"HEAD"';
       return this.cmd("git ls-tree -z " + objectName, function(err, stdout, stderr) {
         var id, line, mode, path, type;
@@ -350,19 +352,20 @@
             if (!(line)) {
               continue;
             }
-            _ref1 = line.match(/\d{6} (blob|tree) (\w{40})\t([@\w\.\/\\ ]+)/), mode = _ref1[0], type = _ref1[1], id = _ref1[2], path = _ref1[3];
+            _ref1 = line.match(this.listPattern), mode = _ref1[0], type = _ref1[1], id = _ref1[2], path = _ref1[3];
             if (type === 'tree') {
               path += '/';
             }
             _results.push(new store.Resource(pth.join(directory, path)));
           }
           return _results;
-        })());
+        }).call(_this));
       });
     };
 
     GitStore.prototype.search = function(pattern, options, callback) {
-      var args;
+      var args,
+        _this = this;
       args = [];
       if (options.ignoreCase) {
         args.push('--ignore-case');
@@ -388,11 +391,11 @@
             if (!(line)) {
               continue;
             }
-            _ref1 = line.match(/([@\w\.\\/\\\x20]+):(\d+):(.+)/), all = _ref1[0], path = _ref1[1], line = _ref1[2], match = _ref1[3];
+            _ref1 = line.match(this.searchPattern), all = _ref1[0], path = _ref1[1], line = _ref1[2], match = _ref1[3];
             _results.push([new store.Resource(path), line, match]);
           }
           return _results;
-        })());
+        }).call(_this));
       });
     };
 
@@ -501,6 +504,17 @@
 
 
     GitStore.prototype.commitPattern = /(\w+)\0([\w\s]+)\0([\w\s\.@]+)\0(\d+)\0(.*)/;
+
+    /**
+    	 * Regular expression to parse output of git-ls-tree
+    	 * @private
+    	 * @type {RegExp}
+    */
+
+
+    GitStore.prototype.listPattern = /\d{6}\x20(blob|tree)\x20(\w{40})\t([!@\#\$%\^&\*\(\)-_\+=\w\.\\/\\\x20]+)/;
+
+    GitStore.prototype.searchPattern = /([!@\#\$%\^&\*\(\)-_\+=\w\.\\/\\\x20]+):(\d+):(.+)/;
 
     /**
     	 * Parses a commit message encoded using the #logFormat

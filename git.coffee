@@ -213,13 +213,13 @@ class GitStore extends store.Store
 
 	all: (directory, callback) ->
 		objectName = if directory isnt '/' then utils.sanitizeShellString("HEAD:"+utils.sanitizePath(directory)) else '"HEAD"'
-		this.cmd("git ls-tree --full-tree -z -r #{objectName}", (err, stdout, stderr) ->
+		this.cmd("git ls-tree --full-tree -z -r #{objectName}", (err, stdout, stderr) =>
 			# -> <mode> SP <type> SP <object> TAB <file>
 
 			if err? then return callback(err)
 
 			callback(null,for line in stdout.split('\x00') when line
-				[mode,type,id,path] = line.match(/\d{6} (blob|tree) (\w{40})\t([@\w\.\/\\ ]+)/) 
+				[mode,type,id,path] = line.match(@listPattern) 
 				if type == 'tree' then path += '/' 
 				new store.Resource(pth.join(directory,path))
 			)
@@ -227,13 +227,13 @@ class GitStore extends store.Store
 
 	list: (directory,callback) -> 
 		objectName = if directory isnt '/' then utils.sanitizeShellString("HEAD:"+utils.sanitizePath(directory)) else '"HEAD"'
-		this.cmd("git ls-tree -z #{objectName}", (err, stdout, stderr) ->
+		this.cmd("git ls-tree -z #{objectName}", (err, stdout, stderr) =>
 			# -> <mode> SP <type> SP <object> TAB <file>
 
 			if err? then return callback(err)
 
 			callback(null,for line in stdout.split('\x00') when line
-				[mode,type,id,path] = line.match(/\d{6} (blob|tree) (\w{40})\t([@\w\.\/\\ ]+)/) 
+				[mode,type,id,path] = line.match(@listPattern) 
 				if type == 'tree' then path += '/' 
 				new store.Resource(pth.join(directory,path))
 			)
@@ -247,16 +247,11 @@ class GitStore extends store.Store
 
 		pattern = utils.sanitizeShellString(pattern)
 
-		this.cmd("git grep -I -n #{args.join(' ')} -e #{pattern}", (err,stdout,stderr) ->
+		this.cmd("git grep -I -n #{args.join(' ')} -e #{pattern}", (err,stdout,stderr) =>
 			if err? then return callback(err)
 
 			callback(err, (for line in stdout.split('\n') when line
-				[all,path,line,match] = line.match(
-					///
-					([@\w\.\/\\\x20]+):	# filename
-					(\d+):			    # line 
-					(.+)			    # match
-					///) 
+				[all,path,line,match] = line.match(@searchPattern) 
 				[new store.Resource(path),line,match]
 			))
 		)
@@ -339,6 +334,24 @@ class GitStore extends store.Store
 		(\d+)\0			# Commit timestamp
 		(.*)			# Commit message
 		///
+
+	###*
+	 * Regular expression to parse output of git-ls-tree
+	 * @private
+	 * @type {RegExp}
+	###
+	listPattern: ///
+		\d{6}\x20       # number
+		(blob|tree)\x20 # type
+		(\w{40})\t      # hash
+		([!@\#\$%\^&\*\(\)-_\+=\w\.\/\\\x20]+) # filename
+		///
+
+	searchPattern: ///
+					([!@\#\$%\^&\*\(\)-_\+=\w\.\/\\\x20]+):	# filename
+					(\d+):			    # line 
+					(.+)			    # match
+					///
 
 	###*
 	 * Parses a commit message encoded using the #logFormat

@@ -435,7 +435,7 @@ q.test('search', ->
 
 	testFile1 = pth.join(dirPath,'test 1.txt')
 	testFile2 = pth.join(dirPath,'test 2.txt')
-	testFile3 = pth.join(dirPath,'@test 3.txt')
+	testFile3 = pth.join(dirPath,'!@#$%^&*() test 3.txt')
 
 	createText1 = 'hello world'
 	createText2 = 'hello mother'
