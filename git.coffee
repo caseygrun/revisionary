@@ -248,7 +248,9 @@ class GitStore extends store.Store
 		pattern = utils.sanitizeShellString(pattern)
 
 		this.cmd("git grep -I -n #{args.join(' ')} -e #{pattern}", (err,stdout,stderr) =>
-			if err? then return callback(err)
+			if err? 
+				if err.code? and err.code == 1 then return callback(null, [])
+				else return callback(err)
 
 			callback(err, (for line in stdout.split('\n') when line
 				[all,path,line,match] = line.match(@searchPattern) 

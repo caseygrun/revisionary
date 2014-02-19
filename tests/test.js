@@ -436,7 +436,7 @@
 
   q.test('search', function() {
     var createAuthor, createMessage, createText1, createText2, createText3, dirPath, testFile1, testFile2, testFile3;
-    q.expect(6);
+    q.expect(8);
     dirPath = 'testDir';
     testFile1 = pth.join(dirPath, 'test 1.txt');
     testFile2 = pth.join(dirPath, 'test 2.txt');
@@ -464,7 +464,11 @@
         q.equal((_ref = matches[0][0]) != null ? _ref.path : void 0, testFile2, 'Match has correct path');
         q.equal(matches[0][1], 1, 'Match has correct line number');
         q.equal(matches[0][2], createText2, 'Match has correct text');
-        return q.start();
+        return git.search('sister', {}, function(err, matches) {
+          q.ok(err == null, 'No error on searching for "sister"');
+          q.deepEqual(matches, [], 'Missing phrase returns no matches');
+          return q.start();
+        });
       });
     });
   });

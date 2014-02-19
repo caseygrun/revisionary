@@ -380,7 +380,11 @@
       return this.cmd("git grep -I -n " + (args.join(' ')) + " -e " + pattern, function(err, stdout, stderr) {
         var all, line, match, path;
         if (err != null) {
-          return callback(err);
+          if ((err.code != null) && err.code === 1) {
+            return callback(null, []);
+          } else {
+            return callback(err);
+          }
         }
         return callback(err, (function() {
           var _i, _len, _ref, _ref1, _results;

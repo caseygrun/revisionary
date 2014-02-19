@@ -429,7 +429,7 @@ q.test('type',->
 
 
 q.test('search', ->
-	q.expect(6)
+	q.expect(8)
 
 	dirPath = 'testDir'
 
@@ -458,7 +458,13 @@ q.test('search', ->
 			q.equal(matches[0][0]?.path,testFile2, 'Match has correct path')
 			q.equal(matches[0][1],1, 'Match has correct line number')
 			q.equal(matches[0][2],createText2, 'Match has correct text')
-			q.start()
+
+			git.search('sister',{}, (err, matches) ->
+				q.ok(not err?, 'No error on searching for "sister"')
+				q.deepEqual(matches, [], 'Missing phrase returns no matches')
+
+				q.start()
+			)
 		)
 )
 
