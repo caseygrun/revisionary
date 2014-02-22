@@ -33,7 +33,7 @@
 
     GitStore.prototype.cmd = function(str, options, callback) {
       if (options == null) {
-        options = null;
+        options = {};
       }
       if (!callback && _.isFunction(options)) {
         callback = options;
@@ -160,14 +160,17 @@
     */
 
 
-    GitStore.prototype.read = function(path, id, callback) {
+    GitStore.prototype.read = function(path, options, callback) {
       var objectName;
-      if (_.isFunction(id) && (callback == null)) {
-        callback = id;
-        id = null;
+      if (options == null) {
+        options = null;
       }
-      objectName = utils.sanitizeShellString(id != null ? "" + id + ":" + path : "HEAD:" + path);
-      return this.cmd("git cat-file -p " + objectName, function(err, stdout, stderr) {
+      if (_.isFunction(options) && (callback == null)) {
+        callback = options;
+        options = null;
+      }
+      objectName = utils.sanitizeShellString((options != null ? options.id : void 0) != null ? "" + id + ":" + path : "HEAD:" + path);
+      return this.cmd("git cat-file -p " + objectName, options, function(err, stdout, stderr) {
         if (err != null) {
           return callback(err);
         }

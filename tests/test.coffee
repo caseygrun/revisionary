@@ -5,8 +5,9 @@ mkdirp = require('mkdirp')
 rimraf = require('rimraf')
 async = require('async')
 child_process = require('child_process')
+buffertools = require('buffertools')
 pth = require('path')
-
+fs = require('fs')
 
 q.module('utils');
 utils = require('../utils');
@@ -239,6 +240,26 @@ q.test('save', ->
 	)
 )
 
+q.test('read', ->
+	inputPath = 'tests/lab.jpg'
+	createPath = savePath = 'testImage.jpg'
+	createAuthor = new store.Author('Name','Email@example.com')
+	createMessage = 'Test commit for image file'
+	
+	q.stop()
+
+	fs.readFile inputPath, (err, data) ->
+		q.ok(not err? 'No error on reading input file'); if err then console.log err
+
+		git.create createPath, data, createAuthor, createMessage, (err, returnedResource) ->
+			q.ok(not err?, 'No error on creating file'); if err then console.log err
+
+			git.read createPath, { encoding: 'buffer', maxBuffer: 20000*1024 }, (err, readData) ->
+				q.ok(not err? 'No error on reading output file'); if err then console.log err
+				q.ok( buffertools.equals(data, readData), 'Output file is the same')
+				q.start()
+)
+
 q.test('log', ->
 	# q.expect(13)
 
@@ -323,7 +344,7 @@ q.test('log', ->
 q.test('list', ->
 	q.expect(5)
 
-	dirPath = 'listDir'
+	dirPath = 'testListDir'
 
 	testFile1 = pth.join(dirPath,'test 1.txt')
 	testFile2 = pth.join(dirPath,'test 2.txt')
@@ -361,7 +382,7 @@ q.test('list', ->
 q.test('all', ->
 	q.expect(5)
 
-	dirPath = 'allDir'
+	dirPath = 'testAllDir'
 
 	testFile1 = pth.join(dirPath,'test 1.txt')
 	testFile2 = pth.join(dirPath,'test 2.txt')
@@ -431,7 +452,7 @@ q.test('type',->
 q.test('search', ->
 	q.expect(8)
 
-	dirPath = 'testDir'
+	dirPath = 'testSearchDir'
 
 	testFile1 = pth.join(dirPath,'test 1.txt')
 	testFile2 = pth.join(dirPath,'test 2.txt')

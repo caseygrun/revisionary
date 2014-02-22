@@ -14,7 +14,7 @@ pth = require('path')
 class GitStore extends store.Store
 	constructor: (@path) ->
 
-	cmd: (str, options=null, callback) ->
+	cmd: (str, options={}, callback) ->
 		if !callback and _.isFunction(options)
 			callback = options; options = {};
 
@@ -109,12 +109,12 @@ class GitStore extends store.Store
 	 * @param  {Error} callback.err Error if one occurs during the read
 	 * @param {String} contents Contents of the resource
 	###
-	read: (path, id, callback) ->
-		if _.isFunction(id) and (not callback?)
-			callback = id; id = null 
+	read: (path, options=null, callback) ->
+		if _.isFunction(options) and (not callback?)
+			callback = options; options = null 
 
-		objectName = utils.sanitizeShellString(if id? then "#{id}:#{path}" else "HEAD:#{path}")
-		this.cmd("git cat-file -p #{objectName}",(err,stdout,stderr) -> 
+		objectName = utils.sanitizeShellString(if options?.id? then "#{id}:#{path}" else "HEAD:#{path}")
+		this.cmd("git cat-file -p #{objectName}",options,(err,stdout,stderr) -> 
 			if err? then return callback(err)
 			callback(null,stdout);
 		);
