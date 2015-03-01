@@ -243,7 +243,7 @@ q.test('save', ->
 
 
 q.test('move', ->
-	q.expect(11)
+	q.expect(12)
 
 	createPath = 'moveTest.txt'
 	createText = 'hello world'
@@ -263,6 +263,10 @@ q.test('move', ->
 		git.move createPath, movePath, moveAuthor, moveMessage, (err) ->
 			q.ok not err?, 'No error in moving file'
 			async.parallel([
+				(cb) ->
+					git.exists createPath, (err, exist) ->
+						q.ok not exist, 'Original file does not exist'
+						cb err
 				(cb) ->
 					git.read(movePath, null, (err, retrievedResourceText) ->
 						q.ok not err?, 'No error on retrieving resource'

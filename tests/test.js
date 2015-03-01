@@ -264,6 +264,11 @@
         q.ok(err == null, 'No error in moving file');
         return async.parallel([
           function(cb) {
+            return git.exists(createPath, function(err, exist) {
+              q.ok(!exist, 'Original file does not exist');
+              return cb(err);
+            });
+          }, function(cb) {
             return git.read(movePath, null, function(err, retrievedResourceText) {
               q.ok(err == null, 'No error on retrieving resource');
               q.equal(retrievedResourceText, createText, 'Moved file has proper contents');
@@ -293,7 +298,7 @@
 
   q.test('remove', function() {
     var createAuthor, createMessage, createPath, createText, removeAuthor, removeMessage, removePath;
-    q.expect(11);
+    q.expect(10);
     createPath = removePath = 'removeTest.txt';
     createText = 'hello world';
     createAuthor = new store.Author('Name', 'Email@example.com');

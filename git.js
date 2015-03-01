@@ -6,7 +6,7 @@
 
   utils = require('./utils');
 
-  store = require('./revisionary');
+  store = require('./core');
 
   _ = require('underscore');
 
@@ -358,7 +358,7 @@
       toPath = utils.sanitizePath(toPath);
       authorString = utils.sanitizeShellString(author.toString());
       message = utils.sanitizeShellString(message);
-      return this.cmd("git mv " + fromPath + " " + toPath + " && git commit --author=" + authorString + " -m " + message + " -- " + toPath, function(err, stdout, stderr) {
+      return this.cmd("git mv " + fromPath + " " + toPath + " && git commit --author=" + authorString + " -m " + message + " -- " + toPath + " " + fromPath, function(err, stdout, stderr) {
         return callback(err);
       });
     };
@@ -538,7 +538,7 @@
       if (options.limit) {
         args.push("-n " + utils.sanitizeShellString(options.until));
       }
-      return this.cmd("git whatchanged --name-only " + (args.join(' ')) + " --pretty='format:" + this.logFormat + "' -- " + path, (function(_this) {
+      return this.cmd("git whatchanged --follow --name-only " + (args.join(' ')) + " --pretty='format:" + this.logFormat + "' -- " + path, (function(_this) {
         return function(err, stdout, stderr) {
           var revs;
           if (err != null) {

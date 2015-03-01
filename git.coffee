@@ -1,5 +1,5 @@
 utils = require('./utils')
-store = require('./revisionary')
+store = require('./core')
 
 _ = require('underscore')
 async = require('async')
@@ -247,7 +247,7 @@ class GitStore extends store.Store
 		authorString = utils.sanitizeShellString(author.toString())
 		message = utils.sanitizeShellString(message)
 
-		this.cmd("git mv #{fromPath} #{toPath} && git commit --author=#{authorString} -m #{message} -- #{toPath}",
+		this.cmd("git mv #{fromPath} #{toPath} && git commit --author=#{authorString} -m #{message} -- #{toPath} #{fromPath}",
 			(err,stdout,stderr) -> callback(err));
 
 	###*
@@ -355,7 +355,7 @@ class GitStore extends store.Store
 
 
 		# %x01 %H %x00 %ct %x00 %an %x00 %ae %x00 %B %n %x00
-		this.cmd("git whatchanged --name-only #{args.join(' ')} --pretty='format:#{@logFormat}' -- #{path}", (err,stdout,stderr) =>
+		this.cmd("git whatchanged --follow --name-only #{args.join(' ')} --pretty='format:#{@logFormat}' -- #{path}", (err,stdout,stderr) =>
 			if err? then return callback(err)
 			revs = @parseLogLines(stdout)
 			callback(null,revs)
