@@ -1,5 +1,5 @@
 utils = require('./utils')
-store = require('./store')
+store = require('./revisionary')
 
 _ = require('underscore')
 async = require('async')
@@ -380,6 +380,4 @@ class GitStore extends store.Store
 			[id, authorName, authorEmail, time, message] = commit
 			new store.Revision(path, id, time, new store.Author(authorName,authorEmail), message, [])
 
-module.exports = {
-	GitStore: GitStore
-}
+module.exports = GitStore

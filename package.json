@@ -1,6 +1,6 @@
 {
   "name": "revisionary",
-  "description": "Git-powered file storage",
+  "description": "Versioned file storage for JavaScript",
   "keywords": [
     "git",
     "files",
@@ -12,7 +12,7 @@
   },
   "version": "0.0.1",
   "license": "MIT",
-  "main": ".",
+  "main": "revisionary.js",
   "dependencies": {
     "underscore": "~1.5.2",
     "async": "~0.2.9",
@@ -20,6 +20,7 @@
     "rimraf": "~2.2.2"
   },
   "devDependencies": {
-    "async": "~0.2.9"
+    "async": "~0.2.9",
     "buffertools": "~2.0.1"
+  }
 }
