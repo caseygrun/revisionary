@@ -1,4 +1,4 @@
-if not QUnit? then QUnit = require('qunit-cli')
+# if not QUnit? then QUnit = require('qunit-cli')
 q = QUnit
 
 mkdirp = require('mkdirp')
@@ -24,15 +24,16 @@ q.test('sanitizePath',->
 	q.equal(utils.sanitizePath('./a/valid/path.txt'),'./a/valid/path.txt', "valid path is passed unchanged")
 )
 
+# -----------------------------------------------------------------------------
 
 git = false
-gs = require('../git')
+GitStore = require('../git')
 store = require('../store')
 q.module('git',{
 	'setup': -> 
 		rimraf.sync('test_repo')
 		mkdirp.sync('test_repo')
-		git = new gs.GitStore('test_repo')
+		git = new GitStore('test_repo')
 		q.stop()
 		git.initialize(null,(err) ->
 			q.start()
@@ -232,7 +233,94 @@ q.test('save', ->
 						q.equal(returnedRevision.author.email, saveAuthor.email, 'Author email is correct')
 						q.ok(returnedRevision.id?, 'Revision is assigned an ID')
 						q.ok(returnedRevision.time?, 'Revision is assigned a date')
-						q.equal(returnedRevision.message,saveMessage)
+						q.equal(returnedRevision.message,saveMessage, 'Save message is correct')
+
+						cb(null)
+					)
+			],(err) -> q.start())
+	)
+)
+
+
+q.test('move', ->
+	q.expect(11)
+
+	createPath = 'moveTest.txt'
+	createText = 'hello world'
+	createAuthor = new store.Author('Name','Email@example.com')
+	createMessage = 'Test create commit'
+
+	movePath = 'moved.txt'
+	moveAuthor = createAuthor
+	moveMessage = 'Moved file'
+
+	q.stop()
+
+	git.create(createPath, createText, createAuthor, createMessage, (err,returnedResource) ->
+		q.ok(not err?, 'No error on creating file')
+		if err? then return console.log(err)
+		
+		git.move createPath, movePath, moveAuthor, moveMessage, (err) ->
+			q.ok not err?, 'No error in moving file'
+			async.parallel([
+				(cb) ->
+					git.read(movePath, null, (err, retrievedResourceText) ->
+						q.ok not err?, 'No error on retrieving resource'
+						q.equal(retrievedResourceText,createText, 'Moved file has proper contents')
+						if err? then console.log(err)
+						cb(err)
+					)
+				,
+				(cb) ->
+					git.latest(movePath, (err, returnedRevision) ->
+						q.ok(not err?, 'No error on retrieving revision')
+						q.ok(returnedRevision?, 'A revision is returned')
+						q.equal(returnedRevision.author.name, moveAuthor.name, 'Author name is correct')
+						q.equal(returnedRevision.author.email, moveAuthor.email, 'Author email is correct')
+						q.ok(returnedRevision.id?, 'Revision is assigned an ID')
+						q.ok(returnedRevision.time?, 'Revision is assigned a date')
+						q.equal(returnedRevision.message,moveMessage, 'Move message is correct')
+
+						cb(null)
+					)
+			],(err) -> q.start())
+	)
+)
+
+q.test('remove', ->
+	q.expect(10)
+
+	createPath = removePath = 'removeTest.txt'
+	createText = 'hello world'
+	createAuthor = new store.Author('Name','Email@example.com')
+	createMessage = 'Test create commit'
+
+	removeAuthor = createAuthor
+	removeMessage = 'Removed file'
+
+	q.stop()
+
+	git.create(createPath, createText, createAuthor, createMessage, (err,returnedResource) ->
+		q.ok(not err?, 'No error on creating file')
+		if err? then return console.log(err)
+		
+		git.remove removePath, removeAuthor, removeMessage, (err) ->
+			q.ok not err?, 'No error in removing file'
+			async.parallel([
+				(cb) ->
+					git.exists removePath, (err, exist) -> 
+						q.ok not exist, 'File no longer exists'
+						cb null
+				,
+				(cb) ->
+					git.latest(removePath, (err, returnedRevision) ->
+						q.ok(not err?, 'No error on retrieving revision')
+						q.ok(returnedRevision?, 'A revision is returned')
+						q.equal(returnedRevision.author.name, removeAuthor.name, 'Author name is correct')
+						q.equal(returnedRevision.author.email, removeAuthor.email, 'Author email is correct')
+						q.ok(returnedRevision.id?, 'Revision is assigned an ID')
+						q.ok(returnedRevision.time?, 'Revision is assigned a date')
+						q.equal(returnedRevision.message,removeMessage, 'Move message is correct')
 
 						cb(null)
 					)
@@ -306,8 +394,8 @@ q.test('log', ->
 							q.equal(results[1].message, createMessage, 'Create message is correct')
 							q.equal(results[0].message, saveMessage, 'Save message is correct')
 
-							q.deepEqual(results[1].author, createAuthor, 'Create author is correct')
-							q.deepEqual(results[0].author, saveAuthor, 'Save author is correct')
+							q.equal(results[1].author.toString(), createAuthor.toString(), 'Create author is correct')
+							q.equal(results[0].author.toString(), saveAuthor.toString(), 'Save author is correct')
 
 							q.ok(results[0]?.path == results[1]?.path == createPath, 'Path is correct')
 

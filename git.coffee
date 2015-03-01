@@ -12,8 +12,25 @@ pth = require('path')
  * @extends Store
 ###
 class GitStore extends store.Store
+	###*
+	 * Constructs a new Git-backed revisionary store
+	 * @param  {String} path Path to the repository
+	###
 	constructor: (@path) ->
+		###*
+		 * @property {String} path Path to this repository in the file system
+		###
 
+	###*
+	 * @private
+	 * Performs a command in the directory of the repository and buffers the output
+	 * @param  {String} command
+	 * @param  {Object} options
+	 * @param  {Function} callback
+	 * @param {Error} [callback.err=null]
+	 * @param {String} callback.stdout
+	 * @param {String} callback.stderr
+	###
 	cmd: (str, options={}, callback) ->
 		if !callback and _.isFunction(options)
 			callback = options; options = {};
@@ -21,6 +38,17 @@ class GitStore extends store.Store
 		options = _.extend(options, { cwd: this.path }) 
 		utils.cmd(str,options, callback)
 
+	###*
+	 * @private
+	 * Performs a commit
+	 * @param  {String} path
+	 * @param  {String} message
+	 * @param  {store.Author} author
+	 * @param  {Function} callback
+	 * @param {Error} callback.err
+	 * @param {String} callback.stdout
+	 * @param {String} callback.stderr
+	###
 	commit: (path,message,author,cb) ->
 		authorString = utils.sanitizeShellString(author.toString());
 		this.cmd("git commit --author=#{authorString} -m #{message} -- #{path}", {
@@ -132,6 +160,8 @@ class GitStore extends store.Store
 		if _.isFunction(id) and (not callback?)
 			callback = id; id = null 
 
+		@type path, id, (err, type) -> callback(err, !!type)
+
 	###*
 	 * Determines the type of the resource at a given path
 	 * @param  {String} path Path to the resource, relative to the repository root
@@ -140,9 +170,13 @@ class GitStore extends store.Store
 	 * @param  {Function} callback Callback to be executed upon completion
 	 * @param  {Error} callback.err Error if one occurs during the read
 	 * @param {Boolean} callback.type Either `'folder'` or `'file'`, or `null` if the resource does not exist.
-	 * 	
+	 *	
 	###
 	type: (path, id=null, callback) ->
+		if _.isFunction(id) and (not callback?) 
+			callback = id
+			id = null
+
 		objectName = utils.sanitizeShellString(if id? then "#{id}:+#{path}" else "HEAD:#{path}")
 
 		this.cmd("git cat-file -t #{objectName}",(err,stdout,stderr) -> 
@@ -191,9 +225,13 @@ class GitStore extends store.Store
 	 * @param  {String} path Path to the resource
 	 * @param  {Function} callback Callback to be executed upon completion
 	###
-	remove: (path, callback) -> 
+	remove: (path, author, message, callback) -> 
 		path = utils.sanitizePath(path);
-		this.cmd("git rm #{path}", callback)
+
+		authorString = utils.sanitizeShellString(author.toString())
+		message = utils.sanitizeShellString(message)
+
+		this.cmd("git rm #{path} && git commit --author=#{authorString} -m #{message} -- #{path}", callback)
 
 	###*
 	 * Moves an objets from one location to another
@@ -204,13 +242,22 @@ class GitStore extends store.Store
 	 * @param  {Function} callback Callback to be executed upon completion
 	###
 	move: (fromPath, toPath, author, message, callback) -> 
-		fromPath = utils.sanitizePath(fromPath);
-		toPath = utils.sanitizePath(toPath);
-		authorString = utils.sanitizeShellString(author.toString());
+		fromPath = utils.sanitizePath(fromPath)
+		toPath = utils.sanitizePath(toPath)
+		authorString = utils.sanitizeShellString(author.toString())
+		message = utils.sanitizeShellString(message)
 
-		this.cmd("git mv #{fromPath} #{toPath} && git commit --author=#{authorString} -m #{message}",
+		this.cmd("git mv #{fromPath} #{toPath} && git commit --author=#{authorString} -m #{message} -- #{toPath}",
 			(err,stdout,stderr) -> callback(err));
 
+	###*
+	 * Lists all resources in a repository, optionally starting from a given 
+	 * directory and recursing downwards. See #list for a non-recursive 
+	 * version.
+	 * @param  {String} [directory='/']
+	 * @param  {Function} callback Callback to be executed upon completion
+	 * @param {store.Resource[]} callback.resources List of resources contained in the directory or its subdirectories
+	###
 	all: (directory, callback) ->
 		objectName = if directory isnt '/' then utils.sanitizeShellString("HEAD:"+utils.sanitizePath(directory)) else '"HEAD"'
 		this.cmd("git ls-tree --full-tree -z -r #{objectName}", (err, stdout, stderr) =>
@@ -225,6 +272,13 @@ class GitStore extends store.Store
 			)
 		)
 
+	###*
+	 * Returns a list of resources in a directory. Does not recurse to 
+	 * subdirectories; see #all for that behavior.
+	 * @param  {String} [directory='/']
+	 * @param  {Function} callback Callback to be executed upon completion
+	 * @param {store.Resource[]} callback.resources List of resources contained in the directory
+	###
 	list: (directory,callback) -> 
 		objectName = if directory isnt '/' then utils.sanitizeShellString("HEAD:"+utils.sanitizePath(directory)) else '"HEAD"'
 		this.cmd("git ls-tree -z #{objectName}", (err, stdout, stderr) =>
@@ -238,7 +292,22 @@ class GitStore extends store.Store
 				new store.Resource(pth.join(directory,path))
 			)
 		)
- 
+
+	###*
+	 * Searches the repository for the given pattern
+	 * @param  {String} pattern Pattern to search for; can be a regular expression
+	 * @param  {Object} [options] Options affecting the search 
+	 * @param {Bool} [options.ignoreCase=false] Case insensitive
+	 * @param {Bool} [options.wordRegexp=false] Match only at a word boundary
+	 * @param {Bool} [options.allMatch=false]
+	 * 
+	 * @param  {Function} callback Callback to be executed upon completion
+	 * @param {Array[]} callback.matches 
+	 * List of matches. Each match is an array: `[res, line, matchText]`, where:
+	 *     - `res` {store.Resource} is the matching resource
+	 *     - `line` {Number} is the line number where the match was found
+	 *     - `matchText` {String} is the text of the line where the match was found 
+	###
 	search: (pattern, options, callback) -> 
 		args = [];
 		args.push('--ignore-case') if options.ignoreCase
@@ -276,6 +345,7 @@ class GitStore extends store.Store
 		if not callback? and _.isFunction(options)
 			callback = options; options = {}
 
+		if path == '/' then path = ''
 		path = utils.sanitizePath(path)
 
 		args = []
@@ -285,7 +355,7 @@ class GitStore extends store.Store
 
 
 		# %x01 %H %x00 %ct %x00 %an %x00 %ae %x00 %B %n %x00
-		this.cmd("git whatchanged --name-only #{args.join(' ')} --pretty='format:#{@logFormat}' -- #{path}",(err,stdout,stderr) =>
+		this.cmd("git whatchanged --name-only #{args.join(' ')} --pretty='format:#{@logFormat}' -- #{path}", (err,stdout,stderr) =>
 			if err? then return callback(err)
 			revs = @parseLogLines(stdout)
 			callback(null,revs)
@@ -346,11 +416,11 @@ class GitStore extends store.Store
 		\d{6}\x20       # number
 		(blob|tree)\x20 # type
 		(\w{40})\t      # hash
-		([!@\#\$%\^&\*\(\)-_\+=\w\.\/\\\x20]+) # filename
+		([!@\#\$%\^&\*\(\)\-_\+=\w\.\/\\\x20]+) # filename
 		///
 
 	searchPattern: ///
-					([!@\#\$%\^&\*\(\)-_\+=\w\.\/\\\x20]+):	# filename
+					([!@\#\$%\^&\*\(\)\-_\+=\w\.\/\\\x20]+):	# filename
 					(\d+):			    # line 
 					(.+)			    # match
 					///

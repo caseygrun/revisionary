@@ -18,18 +18,40 @@
 
   pth = require('path');
 
+
   /**
    * @class GitStore
    * @extends Store
-  */
+   */
+
+  GitStore = (function(superClass) {
+    extend(GitStore, superClass);
 
 
-  GitStore = (function(_super) {
-    __extends(GitStore, _super);
+    /**
+    	 * Constructs a new Git-backed revisionary store
+    	 * @param  {String} path Path to the repository
+     */
 
-    function GitStore(path) {
-      this.path = path;
+    function GitStore(path1) {
+      this.path = path1;
+
+      /**
+      		 * @property {String} path Path to this repository in the file system
+       */
     }
+
+
+    /**
+    	 * @private
+    	 * Performs a command in the directory of the repository and buffers the output
+    	 * @param  {String} command
+    	 * @param  {Object} options
+    	 * @param  {Function} callback
+    	 * @param {Error} [callback.err=null]
+    	 * @param {String} callback.stdout
+    	 * @param {String} callback.stderr
+     */
 
     GitStore.prototype.cmd = function(str, options, callback) {
       if (options == null) {
@@ -45,6 +67,19 @@
       return utils.cmd(str, options, callback);
     };
 
+
+    /**
+    	 * @private
+    	 * Performs a commit
+    	 * @param  {String} path
+    	 * @param  {String} message
+    	 * @param  {store.Author} author
+    	 * @param  {Function} callback
+    	 * @param {Error} callback.err
+    	 * @param {String} callback.stdout
+    	 * @param {String} callback.stderr
+     */
+
     GitStore.prototype.commit = function(path, message, author, cb) {
       var authorString;
       authorString = utils.sanitizeShellString(author.toString());
@@ -58,59 +93,63 @@
       }, cb);
     };
 
+
     /**
     	 * Detects the presence of a repository in the present #path
     	 * @param  {Function} callback Callback to be executed upon completion
     	 * @param {Error} callback.err Error if one occurs 
     	 * @param {Boolean} callback.result true if a repository exists in this location, else false
-    */
-
+     */
 
     GitStore.prototype.detect = function(callback) {
-      var _this = this;
-      return fs.exists(this.path, function(exists) {
-        if (exists) {
-          return _this.cmd('git status', function(err, stdout, stderr) {
-            return callback(err, err == null);
-          });
-        } else {
-          return callback(null, false);
-        }
-      });
+      return fs.exists(this.path, (function(_this) {
+        return function(exists) {
+          if (exists) {
+            return _this.cmd('git status', function(err, stdout, stderr) {
+              return callback(err, err == null);
+            });
+          } else {
+            return callback(null, false);
+          }
+        };
+      })(this));
     };
+
 
     /**
     	 * Initializes a repository
     	 * @param  {Object} options 
     	 * @param  {Function} callback 
     	 * @param {Error|null} callback.err An error, if one occurs during initialization, else null
-    */
-
+     */
 
     GitStore.prototype.initialize = function(options, callback) {
-      var _this = this;
-      return fs.exists(this.path, function(exists) {
-        if (!exists) {
-          mkdirp.sync(_this.path);
-        }
-        return _this.cmd('git init', function(err, stdout, stderr) {
-          return callback(err);
-        });
-      });
+      return fs.exists(this.path, (function(_this) {
+        return function(exists) {
+          if (!exists) {
+            mkdirp.sync(_this.path);
+          }
+          return _this.cmd('git init', function(err, stdout, stderr) {
+            return callback(err);
+          });
+        };
+      })(this));
     };
 
     GitStore.prototype.create = function(path, contents, author, message, callback) {
-      var dirPath,
-        _this = this;
+      var dirPath;
       dirPath = pth.join(this.path, pth.dirname(path));
-      return mkdirp(dirPath, null, function(err, made) {
-        if (err != null) {
-          console.log(err);
-          return callback(err);
-        }
-        return _this.save(path, contents, author, message, callback);
-      });
+      return mkdirp(dirPath, null, (function(_this) {
+        return function(err, made) {
+          if (err != null) {
+            console.log(err);
+            return callback(err);
+          }
+          return _this.save(path, contents, author, message, callback);
+        };
+      })(this));
     };
+
 
     /**
     	 * Saves a resource at the given path. Creates it if it does not exist
@@ -122,23 +161,27 @@
     	 * @param  {Function} callback Callback to be executed upon completion
     	 * @param  {Error} callback.err Error if one occurs during the save
     	 * @param  {store.Resource} callback.res Resource created by the #save
-    */
-
+     */
 
     GitStore.prototype.save = function(path, contents, author, message, callback) {
-      var rawPath,
-        _this = this;
+      var rawPath;
       message = utils.sanitizeShellString(message);
       rawPath = utils.cleanPath(path);
       path = utils.sanitizePath(path);
       return async.series([
-        function(cb) {
-          return fs.writeFile(pth.join(_this.path, rawPath), contents, {}, cb);
-        }, function(cb) {
-          return _this.cmd("git add " + path, cb);
-        }, function(cb) {
-          return _this.commit(path, message, author, cb);
-        }
+        (function(_this) {
+          return function(cb) {
+            return fs.writeFile(pth.join(_this.path, rawPath), contents, {}, cb);
+          };
+        })(this), (function(_this) {
+          return function(cb) {
+            return _this.cmd("git add " + path, cb);
+          };
+        })(this), (function(_this) {
+          return function(cb) {
+            return _this.commit(path, message, author, cb);
+          };
+        })(this)
       ], function(err, stdout, stdin) {
         if (err != null) {
           return callback(err);
@@ -146,6 +189,7 @@
         return callback(null, new store.Resource(path, contents));
       });
     };
+
 
     /**
     	 * Reads the {@link store.Resource#contents} of a {@link store.Resource} at the given `path`
@@ -157,8 +201,7 @@
     	 * @param  {Function} callback Callback to be executed upon completion
     	 * @param  {Error} callback.err Error if one occurs during the read
     	 * @param {String} contents Contents of the resource
-    */
-
+     */
 
     GitStore.prototype.read = function(path, options, callback) {
       var objectName;
@@ -169,7 +212,7 @@
         callback = options;
         options = null;
       }
-      objectName = utils.sanitizeShellString((options != null ? options.id : void 0) != null ? "" + id + ":" + path : "HEAD:" + path);
+      objectName = utils.sanitizeShellString((options != null ? options.id : void 0) != null ? id + ":" + path : "HEAD:" + path);
       return this.cmd("git cat-file -p " + objectName, options, function(err, stdout, stderr) {
         if (err != null) {
           return callback(err);
@@ -177,6 +220,7 @@
         return callback(null, stdout);
       });
     };
+
 
     /**
     	 * Determines if a given resource exists
@@ -186,8 +230,7 @@
     	 * @param  {Function} callback Callback to be executed upon completion
     	 * @param  {Error} callback.err Error if one occurs during the read
     	 * @param {Boolean} callback.exists True if the resource/revision exists
-    */
-
+     */
 
     GitStore.prototype.exists = function(path, id, callback) {
       if (id == null) {
@@ -195,9 +238,13 @@
       }
       if (_.isFunction(id) && (callback == null)) {
         callback = id;
-        return id = null;
+        id = null;
       }
+      return this.type(path, id, function(err, type) {
+        return callback(err, !!type);
+      });
     };
+
 
     /**
     	 * Determines the type of the resource at a given path
@@ -208,15 +255,18 @@
     	 * @param  {Error} callback.err Error if one occurs during the read
     	 * @param {Boolean} callback.type Either `'folder'` or `'file'`, or `null` if the resource does not exist.
     	 *
-    */
-
+     */
 
     GitStore.prototype.type = function(path, id, callback) {
       var objectName;
       if (id == null) {
         id = null;
       }
-      objectName = utils.sanitizeShellString(id != null ? "" + id + ":+" + path : "HEAD:" + path);
+      if (_.isFunction(id) && (callback == null)) {
+        callback = id;
+        id = null;
+      }
+      objectName = utils.sanitizeShellString(id != null ? id + ":+" + path : "HEAD:" + path);
       return this.cmd("git cat-file -t " + objectName, function(err, stdout, stderr) {
         if (err != null) {
           return callback(null, null);
@@ -232,6 +282,7 @@
       });
     };
 
+
     /**
     	 * Retrieves the metadata associated with a particular {@link store.Revision revision} of a 
     	 * {@link store.Resource resource}.
@@ -241,12 +292,11 @@
     	 * @param  {Function} callback Callback to be executed upon completion
     	 * @param  {Error} callback.err Error if one occurs during the read
     	 * @param {store.Resource} callback.res Resource object containing retrieved metadata
-    */
-
+     */
 
     GitStore.prototype.retrieve = function(path, id, callback) {
       var objectName;
-      objectName = utils.sanitizeShellString(id != null ? "" + id + ":+" + path : "HEAD:" + path);
+      objectName = utils.sanitizeShellString(id != null ? id + ":+" + path : "HEAD:" + path);
       return this.cmd("git whatchanged -z --pretty='format:" + this.logFormat + "' --max-count=1 " + id, function(err, stdout, stderr) {
         if (err != null) {
           return callback(err);
@@ -255,6 +305,7 @@
       });
     };
 
+
     /**
     	 * Returns the metadata associated with the most recent revision of a resource
     	 * @param  {String} path Path to the resource, relative to the repository root
@@ -262,31 +313,35 @@
     	 * @param  {Function} callback Callback to be executed upon completion
     	 * @param  {Error} callback.err Error if one occurs during the read
     	 * @param {store.Resource} callback.res Resource object containing retrieved metadata
-    */
-
+     */
 
     GitStore.prototype.latest = function(path, callback) {
-      var _this = this;
       path = utils.sanitizePath(path);
-      return this.cmd("git log --pretty='format:" + this.logFormat + "' --max-count=1 HEAD -- " + path, function(err, stdout, stderr) {
-        if (err != null) {
-          return callback(err);
-        }
-        return callback(null, _this.commitRevision(path, _this.parseCommit(stdout)));
-      });
+      return this.cmd("git log --pretty='format:" + this.logFormat + "' --max-count=1 HEAD -- " + path, (function(_this) {
+        return function(err, stdout, stderr) {
+          if (err != null) {
+            return callback(err);
+          }
+          return callback(null, _this.commitRevision(path, _this.parseCommit(stdout)));
+        };
+      })(this));
     };
+
 
     /**
     	 * Removes a given object
     	 * @param  {String} path Path to the resource
     	 * @param  {Function} callback Callback to be executed upon completion
-    */
+     */
 
-
-    GitStore.prototype.remove = function(path, callback) {
+    GitStore.prototype.remove = function(path, author, message, callback) {
+      var authorString;
       path = utils.sanitizePath(path);
-      return this.cmd("git rm " + path, callback);
+      authorString = utils.sanitizeShellString(author.toString());
+      message = utils.sanitizeShellString(message);
+      return this.cmd("git rm " + path + " && git commit --author=" + authorString + " -m " + message + " -- " + path, callback);
     };
+
 
     /**
     	 * Moves an objets from one location to another
@@ -295,80 +350,117 @@
     	 * @param  {store.Author} author Author of the commit
     	 * @param  {String} message Commit message
     	 * @param  {Function} callback Callback to be executed upon completion
-    */
-
+     */
 
     GitStore.prototype.move = function(fromPath, toPath, author, message, callback) {
       var authorString;
       fromPath = utils.sanitizePath(fromPath);
       toPath = utils.sanitizePath(toPath);
       authorString = utils.sanitizeShellString(author.toString());
-      return this.cmd("git mv " + fromPath + " " + toPath + " && git commit --author=" + authorString + " -m " + message, function(err, stdout, stderr) {
+      message = utils.sanitizeShellString(message);
+      return this.cmd("git mv " + fromPath + " " + toPath + " && git commit --author=" + authorString + " -m " + message + " -- " + toPath, function(err, stdout, stderr) {
         return callback(err);
       });
     };
 
+
+    /**
+    	 * Lists all resources in a repository, optionally starting from a given 
+    	 * directory and recursing downwards. See #list for a non-recursive 
+    	 * version.
+    	 * @param  {String} [directory='/']
+    	 * @param  {Function} callback Callback to be executed upon completion
+    	 * @param {store.Resource[]} callback.resources List of resources contained in the directory or its subdirectories
+     */
+
     GitStore.prototype.all = function(directory, callback) {
-      var objectName,
-        _this = this;
+      var objectName;
       objectName = directory !== '/' ? utils.sanitizeShellString("HEAD:" + utils.sanitizePath(directory)) : '"HEAD"';
-      return this.cmd("git ls-tree --full-tree -z -r " + objectName, function(err, stdout, stderr) {
-        var id, line, mode, path, type;
-        if (err != null) {
-          return callback(err);
-        }
-        return callback(null, (function() {
-          var _i, _len, _ref, _ref1, _results;
-          _ref = stdout.split('\x00');
-          _results = [];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            line = _ref[_i];
-            if (!(line)) {
-              continue;
-            }
-            _ref1 = line.match(this.listPattern), mode = _ref1[0], type = _ref1[1], id = _ref1[2], path = _ref1[3];
-            if (type === 'tree') {
-              path += '/';
-            }
-            _results.push(new store.Resource(pth.join(directory, path)));
+      return this.cmd("git ls-tree --full-tree -z -r " + objectName, (function(_this) {
+        return function(err, stdout, stderr) {
+          var id, line, mode, path, type;
+          if (err != null) {
+            return callback(err);
           }
-          return _results;
-        }).call(_this));
-      });
+          return callback(null, (function() {
+            var i, len, ref, ref1, results;
+            ref = stdout.split('\x00');
+            results = [];
+            for (i = 0, len = ref.length; i < len; i++) {
+              line = ref[i];
+              if (!(line)) {
+                continue;
+              }
+              ref1 = line.match(this.listPattern), mode = ref1[0], type = ref1[1], id = ref1[2], path = ref1[3];
+              if (type === 'tree') {
+                path += '/';
+              }
+              results.push(new store.Resource(pth.join(directory, path)));
+            }
+            return results;
+          }).call(_this));
+        };
+      })(this));
     };
+
+
+    /**
+    	 * Returns a list of resources in a directory. Does not recurse to 
+    	 * subdirectories; see #all for that behavior.
+    	 * @param  {String} [directory='/']
+    	 * @param  {Function} callback Callback to be executed upon completion
+    	 * @param {store.Resource[]} callback.resources List of resources contained in the directory
+     */
 
     GitStore.prototype.list = function(directory, callback) {
-      var objectName,
-        _this = this;
+      var objectName;
       objectName = directory !== '/' ? utils.sanitizeShellString("HEAD:" + utils.sanitizePath(directory)) : '"HEAD"';
-      return this.cmd("git ls-tree -z " + objectName, function(err, stdout, stderr) {
-        var id, line, mode, path, type;
-        if (err != null) {
-          return callback(err);
-        }
-        return callback(null, (function() {
-          var _i, _len, _ref, _ref1, _results;
-          _ref = stdout.split('\x00');
-          _results = [];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            line = _ref[_i];
-            if (!(line)) {
-              continue;
-            }
-            _ref1 = line.match(this.listPattern), mode = _ref1[0], type = _ref1[1], id = _ref1[2], path = _ref1[3];
-            if (type === 'tree') {
-              path += '/';
-            }
-            _results.push(new store.Resource(pth.join(directory, path)));
+      return this.cmd("git ls-tree -z " + objectName, (function(_this) {
+        return function(err, stdout, stderr) {
+          var id, line, mode, path, type;
+          if (err != null) {
+            return callback(err);
           }
-          return _results;
-        }).call(_this));
-      });
+          return callback(null, (function() {
+            var i, len, ref, ref1, results;
+            ref = stdout.split('\x00');
+            results = [];
+            for (i = 0, len = ref.length; i < len; i++) {
+              line = ref[i];
+              if (!(line)) {
+                continue;
+              }
+              ref1 = line.match(this.listPattern), mode = ref1[0], type = ref1[1], id = ref1[2], path = ref1[3];
+              if (type === 'tree') {
+                path += '/';
+              }
+              results.push(new store.Resource(pth.join(directory, path)));
+            }
+            return results;
+          }).call(_this));
+        };
+      })(this));
     };
 
+
+    /**
+    	 * Searches the repository for the given pattern
+    	 * @param  {String} pattern Pattern to search for; can be a regular expression
+    	 * @param  {Object} [options] Options affecting the search 
+    	 * @param {Bool} [options.ignoreCase=false] Case insensitive
+    	 * @param {Bool} [options.wordRegexp=false] Match only at a word boundary
+    	 * @param {Bool} [options.allMatch=false]
+    	 * 
+    	 * @param  {Function} callback Callback to be executed upon completion
+    	 * @param {Array[]} callback.matches 
+    	 * List of matches. Each match is an array: `[res, line, matchText]`, where:
+    	 *     - `res` {store.Resource} is the matching resource
+    	 *     - `line` {Number} is the line number where the match was found
+    	 *     - `matchText` {String} is the text of the line where the match was found
+     */
+
     GitStore.prototype.search = function(pattern, options, callback) {
-      var args,
-        _this = this;
+      var args;
       args = [];
       if (options.ignoreCase) {
         args.push('--ignore-case');
@@ -380,31 +472,34 @@
         args.push('--all-match');
       }
       pattern = utils.sanitizeShellString(pattern);
-      return this.cmd("git grep -I -n " + (args.join(' ')) + " -e " + pattern, function(err, stdout, stderr) {
-        var all, line, match, path;
-        if (err != null) {
-          if ((err.code != null) && err.code === 1) {
-            return callback(null, []);
-          } else {
-            return callback(err);
-          }
-        }
-        return callback(err, (function() {
-          var _i, _len, _ref, _ref1, _results;
-          _ref = stdout.split('\n');
-          _results = [];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            line = _ref[_i];
-            if (!(line)) {
-              continue;
+      return this.cmd("git grep -I -n " + (args.join(' ')) + " -e " + pattern, (function(_this) {
+        return function(err, stdout, stderr) {
+          var all, line, match, path;
+          if (err != null) {
+            if ((err.code != null) && err.code === 1) {
+              return callback(null, []);
+            } else {
+              return callback(err);
             }
-            _ref1 = line.match(this.searchPattern), all = _ref1[0], path = _ref1[1], line = _ref1[2], match = _ref1[3];
-            _results.push([new store.Resource(path), line, match]);
           }
-          return _results;
-        }).call(_this));
-      });
+          return callback(err, (function() {
+            var i, len, ref, ref1, results;
+            ref = stdout.split('\n');
+            results = [];
+            for (i = 0, len = ref.length; i < len; i++) {
+              line = ref[i];
+              if (!(line)) {
+                continue;
+              }
+              ref1 = line.match(this.searchPattern), all = ref1[0], path = ref1[1], line = ref1[2], match = ref1[3];
+              results.push([new store.Resource(path), line, match]);
+            }
+            return results;
+          }).call(_this));
+        };
+      })(this));
     };
+
 
     /**
     	 * Retrieves a list of revisions associated with the particular resource
@@ -418,18 +513,19 @@
     	 * @param  {Function} callback Callback to be executed upon completion
     	 * @param  {Error} callback.err Error if one occurs during the read
     	 * @param {store.Revision[]} callback.revisions Array of revisions
-    */
-
+     */
 
     GitStore.prototype.log = function(path, options, callback) {
-      var args,
-        _this = this;
+      var args;
       if (options == null) {
         options = null;
       }
       if ((callback == null) && _.isFunction(options)) {
         callback = options;
         options = {};
+      }
+      if (path === '/') {
+        path = '';
       }
       path = utils.sanitizePath(path);
       args = [];
@@ -442,93 +538,95 @@
       if (options.limit) {
         args.push("-n " + utils.sanitizeShellString(options.until));
       }
-      return this.cmd("git whatchanged --name-only " + (args.join(' ')) + " --pretty='format:" + this.logFormat + "' -- " + path, function(err, stdout, stderr) {
-        var revs;
-        if (err != null) {
-          return callback(err);
-        }
-        revs = _this.parseLogLines(stdout);
-        return callback(null, revs);
-      });
+      return this.cmd("git whatchanged --name-only " + (args.join(' ')) + " --pretty='format:" + this.logFormat + "' -- " + path, (function(_this) {
+        return function(err, stdout, stderr) {
+          var revs;
+          if (err != null) {
+            return callback(err);
+          }
+          revs = _this.parseLogLines(stdout);
+          return callback(null, revs);
+        };
+      })(this));
     };
+
 
     /**
     	 * @private
     	 * @param  {String} text Input lines from `git whatchanged`
     	 * @return {store.Revision[]} Generated revisions
-    */
-
+     */
 
     GitStore.prototype.parseLogLines = function(text) {
       var commit, line, revs, s;
       revs = [];
       commit = null;
       revs = (function() {
-        var _i, _len, _ref, _results;
-        _ref = text.split('\n');
-        _results = [];
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          line = _ref[_i];
+        var i, len, ref, results;
+        ref = text.split('\n');
+        results = [];
+        for (i = 0, len = ref.length; i < len; i++) {
+          line = ref[i];
           if (line) {
             if (this.commitPattern.test(line)) {
               commit = this.parseCommit(line);
-              _results.push(null);
+              results.push(null);
             } else {
-              _results.push(this.commitRevision(line, commit));
+              results.push(this.commitRevision(line, commit));
             }
           }
         }
-        return _results;
+        return results;
       }).call(this);
       revs = (function() {
-        var _i, _len, _results;
-        _results = [];
-        for (_i = 0, _len = revs.length; _i < _len; _i++) {
-          s = revs[_i];
+        var i, len, results;
+        results = [];
+        for (i = 0, len = revs.length; i < len; i++) {
+          s = revs[i];
           if (s) {
-            _results.push(s);
+            results.push(s);
           }
         }
-        return _results;
+        return results;
       })();
       return revs;
     };
+
 
     /**
     	 * Format git should use to output commit messages
     	 * @private
     	 * @type {String}
-    */
-
+     */
 
     GitStore.prototype.logFormat = '%H%x00%an%x00%ae%x00%ct%x00%B';
+
 
     /**
     	 * Regular expression to parse commit messages
     	 * @private
     	 * @type {RegExp}
-    */
-
+     */
 
     GitStore.prototype.commitPattern = /(\w+)\0([\w\s]+)\0([\w\s\.@]+)\0(\d+)\0(.*)/;
+
 
     /**
     	 * Regular expression to parse output of git-ls-tree
     	 * @private
     	 * @type {RegExp}
-    */
+     */
 
+    GitStore.prototype.listPattern = /\d{6}\x20(blob|tree)\x20(\w{40})\t([!@\#\$%\^&\*\(\)\-_\+=\w\.\/\\\x20]+)/;
 
-    GitStore.prototype.listPattern = /\d{6}\x20(blob|tree)\x20(\w{40})\t([!@\#\$%\^&\*\(\)-_\+=\w\.\\/\\\x20]+)/;
+    GitStore.prototype.searchPattern = /([!@\#\$%\^&\*\(\)\-_\+=\w\.\/\\\x20]+):(\d+):(.+)/;
 
-    GitStore.prototype.searchPattern = /([!@\#\$%\^&\*\(\)-_\+=\w\.\\/\\\x20]+):(\d+):(.+)/;
 
     /**
     	 * Parses a commit message encoded using the #logFormat
     	 * @private
     	 * @param  {String} line A line of output from a git-log like function with format {@link #logFormat}
-    */
-
+     */
 
     GitStore.prototype.parseCommit = function(line) {
       var match;
@@ -541,14 +639,14 @@
       }
     };
 
+
     /**
     	 * Generates a revision from a path and a {@link #parseCommit parsed commit statement}
     	 * @private
     	 * @param  {String} path Path to the relevant resource
     	 * @param  {Array} commit Parsed commit string (see #parseCommit)
     	 * @return {store.Revision} Revision
-    */
-
+     */
 
     GitStore.prototype.commitRevision = function(path, commit) {
       var authorEmail, authorName, id, message, time;
