@@ -3,8 +3,9 @@ var util = require('util'),
 	child_process = require('child_process')
 
 function cmd(command, options, callback) {
-	// console.log(command,options)
+	console.log(command,options)
 	return exec(command,options,callback)
+	// return child_process.exec(command, options, callback)
 }
 
 function sanitizeShellString (s) {
@@ -15,7 +16,7 @@ function sanitizeShellString (s) {
 }
 
 function cleanPath (p) {
-	var p1 = p.replace(/[^\w \.\/]/g,'')
+	var p1 = p.replace(/[^\w\- \.\/]/g,'')
 	do {
 		p = p1
 		p1 = p.replace('..','')
