@@ -28,7 +28,7 @@ q.test('sanitizePath',->
 
 git = false
 GitStore = require('../git')
-store = require('../store')
+store = require('../core')
 q.module('git',{
 	'setup': -> 
 		rimraf.sync('test_repo')

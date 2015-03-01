@@ -39,7 +39,7 @@
 
   GitStore = require('../git');
 
-  store = require('../store');
+  store = require('../core');
 
   q.module('git', {
     'setup': function() {
